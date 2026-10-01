@@ -1,0 +1,520 @@
+-- บริการและตัวแปรหลัก
+local players = game:GetService("Players")
+local teleportService = game:GetService("TeleportService")
+local userInputService = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local workspace = game:GetService("Workspace")
+local camera = workspace.CurrentCamera
+
+local localPlayer = players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+local correctPassword = "tono"
+
+-- รายชื่อไอเทมทั้งหมดที่ต้องการตรวจสอบ
+local targetItems = {
+    "Purple Shovel", "Wrench", "Axe", "Tactical Shovel", "Tactical Knife", "Tac Knife",
+    "P226 Pistol", "Anaconda Revolver", "Double Barrel Shotgun", "Broken Double Barrel Shotgun",
+    "Short Barrel Shotgun", "Remington Shotgun", "Uzi SMG", "MP5 SMG", "Draco Rifle",
+    "M16 Rifle", "AK-47 Rifle", "Crossbow", "RPG", "Molotov Coctail", "Surgical Gloves",
+    "Energy Shot", "Blood Bag", "Medkit", "Lockpick", "Hack Tools", "Skimmers",
+    "Shiesty Mask", "Bipod", "Scopes", "Car Brakes"
+}
+
+-- สร้างหน้าจอหลัก (ScreenGui)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomModernMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- ---------------------------------------------------------
+-- ปุ่มวงกลมลอยได้ (Floating Toggle Button) สำหรับเปิด/ปิดเมนู
+-- ---------------------------------------------------------
+local floatingBtn = Instance.new("TextButton")
+floatingBtn.Size = UDim2.new(0, 50, 0, 50)
+floatingBtn.Position = UDim2.new(0, 30, 0.4, 0)
+floatingBtn.BackgroundColor3 = Color3.fromRGB(25, 22, 35)
+floatingBtn.Text = "💥"
+floatingBtn.TextSize = 22
+floatingBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+floatingBtn.AutoButtonColor = false
+floatingBtn.Parent = screenGui
+
+local floatCorner = Instance.new("UICorner")
+floatCorner.CornerRadius = UDim.new(1, 0)
+floatCorner.Parent = floatingBtn
+
+local floatStroke = Instance.new("UIStroke")
+floatStroke.Color = Color3.fromRGB(120, 70, 180)
+floatStroke.Thickness = 2
+floatStroke.Parent = floatingBtn
+
+-- ระบบลากปุ่มวงกลมไปวางไว้ตรงไหนก็ได้ (Draggable)
+local dragging, dragInput, dragStart, startPos
+
+floatingBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = floatingBtn.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+floatingBtn.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+userInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        floatingBtn.Position = UDim2.new(
+            startPos.X.Scale, 
+            startPos.X.Offset + delta.X, 
+            startPos.Y.Scale, 
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ---------------------------------------------------------
+-- กรอบเมนูหลักสไตล์โมเดิร์น (โทนสีดำ-ม่วงเข้ม)
+-- ---------------------------------------------------------
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 480, 0, 420)
+mainFrame.Position = UDim2.new(0.5, -240, 0.5, -210)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 18, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(80, 50, 120)
+mainStroke.Thickness = 1.5
+mainStroke.Parent = mainFrame
+
+-- แถบเมนูด้านซ้าย (Sidebar)
+local sideBar = Instance.new("Frame")
+sideBar.Size = UDim2.new(0, 45, 1, 0)
+sideBar.BackgroundColor3 = Color3.fromRGB(15, 14, 20)
+sideBar.BorderSizePixel = 0
+sideBar.Parent = mainFrame
+
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = UDim.new(0, 8)
+sideCorner.Parent = sideBar
+
+-- โลโก้หรือไอคอนมุมซ้ายบน
+local logoLabel = Instance.new("TextLabel")
+logoLabel.Size = UDim2.new(0, 45, 0, 45)
+logoLabel.BackgroundTransparency = 1
+logoLabel.Text = "💥"
+logoLabel.TextSize = 20
+logoLabel.Parent = sideBar
+
+-- ช่องค้นหาด้านบน พร้อมหัวข้อ "ไม่แจกแตกหมด"
+local searchBar = Instance.new("TextBox")
+searchBar.Size = UDim2.new(1, -60, 0, 30)
+searchBar.Position = UDim2.new(0, 55, 0, 10)
+searchBar.BackgroundColor3 = Color3.fromRGB(30, 26, 40)
+searchBar.Text = "ไม่แจกแตกหมด"
+searchBar.TextColor3 = Color3.fromRGB(255, 200, 50)
+searchBar.TextSize = 14
+searchBar.Font = Enum.Font.SourceSansBold
+searchBar.Parent = mainFrame
+
+local searchCorner = Instance.new("UICorner")
+searchCorner.CornerRadius = UDim.new(0, 6)
+searchCorner.Parent = searchBar
+
+-- ---------------------------------------------------------
+-- หน้าต่างใส่รหัสผ่าน (Login View)
+-- ---------------------------------------------------------
+local loginContainer = Instance.new("Frame")
+loginContainer.Size = UDim2.new(1, -55, 1, -50)
+loginContainer.Position = UDim2.new(0, 50, 0, 45)
+loginContainer.BackgroundTransparency = 1
+loginContainer.Parent = mainFrame
+
+local passBox = Instance.new("TextBox")
+passBox.Size = UDim2.new(0.6, 0, 0, 35)
+passBox.Position = UDim2.new(0.2, 0, 0.3, 0)
+passBox.BackgroundColor3 = Color3.fromRGB(35, 30, 45)
+passBox.Text = ""
+passBox.PlaceholderText = "กรอกรหัสผ่าน (tono)..."
+passBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+passBox.TextSize = 14
+passBox.Font = Enum.Font.SourceSans
+passBox.Parent = loginContainer
+
+local passCorner = Instance.new("UICorner")
+passCorner.CornerRadius = UDim.new(0, 6)
+passCorner.Parent = passBox
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.6, 0, 0, 35)
+submitBtn.Position = UDim2.new(0.2, 0, 0.48, 0)
+submitBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 160)
+submitBtn.Text = "ยืนยันรหัสผ่าน"
+submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitBtn.TextSize = 14
+submitBtn.Font = Enum.Font.SourceSansBold
+submitBtn.Parent = loginContainer
+
+local subCorner = Instance.new("UICorner")
+subCorner.CornerRadius = UDim.new(0, 6)
+subCorner.Parent = submitBtn
+
+-- ---------------------------------------------------------
+-- เมนูฟังก์ชันหลัก (ระบบเลื่อนขึ้น-ลง / ScrollingFrame)
+-- ---------------------------------------------------------
+local scrollingContainer = Instance.new("ScrollingFrame")
+scrollingContainer.Size = UDim2.new(1, -55, 1, -50)
+scrollingContainer.Position = UDim2.new(0, 50, 0, 45)
+scrollingContainer.BackgroundTransparency = 1
+scrollingContainer.BorderSizePixel = 0
+scrollingContainer.CanvasSize = UDim2.new(0, 0, 0, 370)
+scrollingContainer.ScrollBarThickness = 4
+scrollingContainer.Visible = false
+scrollingContainer.Parent = mainFrame
+
+-- ระบบตรวจสอบรหัสผ่าน
+submitBtn.MouseButton1Click:Connect(function()
+    if passBox.Text == correctPassword then
+        loginContainer.Visible = false
+        scrollingContainer.Visible = true
+    else
+        passBox.Text = ""
+        passBox.PlaceholderText = "รหัสผ่านไม่ถูกต้อง!"
+    end
+end)
+
+-- ปุ่มเปิด/ปิด เมนูหลักผ่านปุ่มกลมลอย
+local menuOpened = true
+floatingBtn.MouseButton1Click:Connect(function()
+    menuOpened = not menuOpened
+    mainFrame.Visible = menuOpened
+end)
+
+-- 1. ช่องกรอก JobId เซิร์ฟเวอร์
+local serverBox = Instance.new("TextBox")
+serverBox.Size = UDim2.new(0.9, 0, 0, 32)
+serverBox.Position = UDim2.new(0.05, 0, 0, 10)
+serverBox.BackgroundColor3 = Color3.fromRGB(35, 30, 45)
+serverBox.Text = ""
+serverBox.PlaceholderText = "วางรหัสเซิร์ฟเวอร์ (JobId)..."
+serverBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+serverBox.TextSize = 13
+serverBox.Parent = scrollingContainer
+
+local sBoxCorner = Instance.new("UICorner")
+sBoxCorner.CornerRadius = UDim.new(0, 6)
+sBoxCorner.Parent = serverBox
+
+-- ปุ่มเปลี่ยนเซิร์ฟเวอร์ (🌍)
+local tpBtn = Instance.new("TextButton")
+tpBtn.Size = UDim2.new(0.9, 0, 0, 32)
+tpBtn.Position = UDim2.new(0.05, 0, 0, 50)
+tpBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+tpBtn.Text = "🌍 เปลี่ยนเซิร์ฟเวอร์"
+tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBtn.TextSize = 14
+tpBtn.Font = Enum.Font.SourceSansBold
+tpBtn.Parent = scrollingContainer
+
+local tpCorner = Instance.new("UICorner")
+tpCorner.CornerRadius = UDim.new(0, 6)
+tpCorner.Parent = tpBtn
+
+tpBtn.MouseButton1Click:Connect(function()
+    local jobId = serverBox.Text
+    if jobId ~= "" then
+        pcall(function()
+            teleportService:TeleportToPlaceInstance(game.PlaceId, jobId, localPlayer)
+        end)
+    end
+end)
+
+-- ปุ่มดูข้อมูลผู้เล่น (👤)
+local inspectBtn = Instance.new("TextButton")
+inspectBtn.Size = UDim2.new(0.9, 0, 0, 32)
+inspectBtn.Position = UDim2.new(0.05, 0, 0, 90)
+inspectBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+inspectBtn.Text = "👤 ดูข้อมูลผู้เล่นอื่นใน Console"
+inspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+inspectBtn.TextSize = 14
+inspectBtn.Font = Enum.Font.SourceSansBold
+inspectBtn.Parent = scrollingContainer
+
+local insCorner = Instance.new("UICorner")
+insCorner.CornerRadius = UDim.new(0, 6)
+insCorner.Parent = inspectBtn
+
+inspectBtn.MouseButton1Click:Connect(function()
+    print("--- รายชื่อและไอเทมในตัวผู้เล่น ---")
+    for _, p in ipairs(players:GetPlayers()) do
+        if p ~= localPlayer and p.Character then
+            print("ผู้เล่น: " .. p.Name)
+            local containers = {}
+            if p.Character then table.insert(containers, p.Character) end
+            local bp = p:FindFirstChildOfClass("Backpack")
+            if bp then table.insert(containers, bp) end
+            for _, c in ipairs(containers) do
+                for _, item in ipairs(c:GetChildren()) do
+                    print("  - ไอเทม: " .. item.Name)
+                end
+            end
+        end
+    end
+end)
+
+-- ปุ่มมองเห็นตัวผู้เล่นอื่นเป็นสีแดงรอบตัว พร้อมหลอดเลือดแนวตั้ง (🔴)
+local espBtn = Instance.new("TextButton")
+espBtn.Size = UDim2.new(0.9, 0, 0, 32)
+espBtn.Position = UDim2.new(0.05, 0, 0, 130)
+espBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+espBtn.Text = "🔴 เปิด/ปิด ตัวแดง + หลอดเลือด"
+espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+espBtn.TextSize = 13
+espBtn.Font = Enum.Font.SourceSansBold
+espBtn.Parent = scrollingContainer
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 6)
+espCorner.Parent = espBtn
+
+local isEspActive = false
+local espConnections = {}
+local healthBarLoops = {}
+
+espBtn.MouseButton1Click:Connect(function()
+    isEspActive = not isEspActive
+    if isEspActive then
+        espBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+        
+        local function applyESP(p)
+            if p ~= localPlayer then
+                local function setupCharacter(char)
+                    if not char:FindFirstChild("CustomRedESP") then
+                        local hl = Instance.new("Highlight")
+                        hl.Name = "CustomRedESP"
+                        hl.FillColor = Color3.fromRGB(255, 0, 0)
+                        hl.FillTransparency = 0.5
+                        hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                        hl.OutlineTransparency = 0
+                        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                        hl.Parent = char
+                    end
+
+                    local rootPart = char:FindFirstChild("HumanoidRootPart")
+                    local humanoid = char:FindFirstChildOfClass("Humanoid")
+                    if rootPart and humanoid and not char:FindFirstChild("VerticalHealthESP") then
+                        local bg = Instance.new("BillboardGui")
+                        bg.Name = "VerticalHealthESP"
+                        bg.Size = UDim2.new(0, 30, 0, 70)
+                        bg.StudsOffset = Vector3.new(2.2, 0, 0)
+                        bg.AlwaysOnTop = true
+                        bg.Parent = char
+
+                        local bgBar = Instance.new("Frame")
+                        bgBar.Size = UDim2.new(0, 6, 1, 0)
+                        bgBar.Position = UDim2.new(0.5, -3, 0, 0)
+                        bgBar.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+                        bgBar.BorderSizePixel = 0
+                        bgBar.Parent = bg
+
+                        local bgCorner = Instance.new("UICorner")
+                        bgCorner.CornerRadius = UDim.new(1, 0)
+                        bgCorner.Parent = bgBar
+
+                        local fillBar = Instance.new("Frame")
+                        fillBar.Size = UDim2.new(1, 0, 1, 0)
+                        fillBar.Position = UDim2.new(0, 0, 0, 0)
+                        fillBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                        fillBar.BorderSizePixel = 0
+                        fillBar.Parent = bgBar
+
+                        local fillCorner = Instance.new("UICorner")
+                        fillCorner.CornerRadius = UDim.new(1, 0)
+                        fillCorner.Parent = fillBar
+
+                        local hbLoop = runService.RenderStepped:Connect(function()
+                            if humanoid and humanoid.Health > 0 then
+                                local healthPercent = math.clamp(humanoid.Health / humanoid.MaxHealth, 0, 1)
+                                fillBar.Size = UDim2.new(1, 0, healthPercent, 0)
+                                fillBar.Position = UDim2.new(0, 0, 1 - healthPercent, 0)
+                                
+                                if healthPercent > 0.5 then
+                                    fillBar.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+                                elseif healthPercent > 0.25 then
+                                    fillBar.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+                                else
+                                    fillBar.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+                                end
+                            else
+                                bg.Enabled = false
+                            end
+                        end)
+                        table.insert(healthBarLoops, hbLoop)
+                    end
+                end
+
+                if p.Character then
+                    setupCharacter(p.Character)
+                end
+                table.insert(espConnections, p.CharacterAdded:Connect(setupCharacter))
+            end
+        end
+
+        for _, p in ipairs(players:GetPlayers()) do
+            applyESP(p)
+        end
+        table.insert(espConnections, players.PlayerAdded:Connect(applyESP))
+    else
+        espBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+        for _, conn in ipairs(espConnections) do
+            if typeof(conn) == "RBXScriptConnection" then conn:Disconnect() end
+        end
+        espConnections = {}
+
+        for _, loop in ipairs(healthBarLoops) do
+            if typeof(loop) == "RBXScriptConnection" then loop:Disconnect() end
+        end
+        healthBarLoops = {}
+
+        for _, p in ipairs(players:GetPlayers()) do
+            if p.Character then
+                local hl = p.Character:FindFirstChild("CustomRedESP")
+                if hl then hl:Destroy() end
+                local vh = p.Character:FindFirstChild("VerticalHealthESP")
+                if vh then vh:Destroy() end
+            end
+        end
+    end
+end)
+
+-- ปุ่มแสดงชื่อไอเทมใต้เท้าผู้เล่นอื่นแบบเรียลไทม์ (🎒)
+local itemTagBtn = Instance.new("TextButton")
+itemTagBtn.Size = UDim2.new(0.9, 0, 0, 32)
+itemTagBtn.Position = UDim2.new(0.05, 0, 0, 170)
+itemTagBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+itemTagBtn.Text = "🎒 เปิด/ปิด ชื่อไอเทมใต้เท้า"
+itemTagBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+itemTagBtn.TextSize = 14
+itemTagBtn.Font = Enum.Font.SourceSansBold
+itemTagBtn.Parent = scrollingContainer
+
+local itemTagCorner = Instance.new("UICorner")
+itemTagCorner.CornerRadius = UDim.new(0, 6)
+itemTagCorner.Parent = itemTagBtn
+
+local isItemTagActive = false
+local itemTagConnections = {}
+
+local function getPlayerItemsString(p)
+    local itemsFound = {}
+    local containers = {}
+    if p.Character then table.insert(containers, p.Character) end
+    local backpack = p:FindFirstChildOfClass("Backpack")
+    if backpack then table.insert(containers, backpack) end
+
+    for _, container in ipairs(containers) do
+        for _, item in ipairs(container:GetChildren()) do
+            for _, targetName in ipairs(targetItems) do
+                if string.lower(item.Name) == string.lower(targetName) then
+                    table.insert(itemsFound, item.Name)
+                end
+            end
+        end
+    end
+    return #itemsFound > 0 and table.concat(itemsFound, ", ") or "ไม่มีไอเทมเป้าหมาย"
+end
+
+itemTagBtn.MouseButton1Click:Connect(function()
+    isItemTagActive = not isItemTagActive
+    if isItemTagActive then
+        itemTagBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 150)
+        
+        local function applyItemTag(p)
+            if p ~= localPlayer then
+                local function setupCharTag(char)
+                    local rootPart = char:FindFirstChild("HumanoidRootPart")
+                    if rootPart and not char:FindFirstChild("ItemFootTagCustom") then
+                        local bg = Instance.new("BillboardGui")
+                        bg.Name = "ItemFootTagCustom"
+                        bg.Size = UDim2.new(0, 200, 0, 50)
+                        bg.StudsOffset = Vector3.new(0, -3.5, 0)
+                        bg.AlwaysOnTop = true
+                        bg.Parent = char
+
+                        local txt = Instance.new("TextLabel")
+                        txt.Size = UDim2.new(1, 0, 1, 0)
+                        txt.BackgroundTransparency = 1
+                        txt.TextColor3 = Color3.fromRGB(0, 255, 255)
+                        txt.TextStrokeTransparency = 0
+                        txt.TextSize = 12
+                        txt.Font = Enum.Font.SourceSansBold
+                        txt.Text = "กำลังโหลด..."
+                        txt.Parent = bg
+
+                        local taskLoop = task.spawn(function()
+                            while char and char.Parent and isItemTagActive do
+                                txt.Text = "📦 " .. getPlayerItemsString(p)
+                                task.wait(1)
+                            end
+                        end)
+                        table.insert(itemTagConnections, taskLoop)
+                    end
+                end
+                if p.Character then setupCharTag(p.Character) end
+                table.insert(itemTagConnections, p.CharacterAdded:Connect(setupCharTag))
+            end
+        end
+
+        for _, p in ipairs(players:GetPlayers()) do applyItemTag(p) end
+        table.insert(itemTagConnections, players.PlayerAdded:Connect(applyItemTag))
+    else
+        itemTagBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+        for _, p in ipairs(players:GetPlayers()) do
+            if p.Character then
+                local tag = p.Character:FindFirstChild("ItemFootTagCustom")
+                if tag then tag:Destroy() end
+            end
+        end
+    end
+end)
+
+-- ปุ่มแสดงชื่อทุกคนในเซิร์ฟ (🏷️)
+local nameTagBtn = Instance.new("TextButton")
+nameTagBtn.Size = UDim2.new(0.9, 0, 0, 32)
+nameTagBtn.Position = UDim2.new(0.05, 0, 0, 210)
+nameTagBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+nameTagBtn.Text = "🏷️ เปิด/ปิด เห็นชื่อทุกคน"
+nameTagBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameTagBtn.TextSize = 14
+nameTagBtn.Font = Enum.Font.SourceSansBold
+nameTagBtn.Parent = scrollingContainer
+
+local nameTagCorner = Instance.new("UICorner")
+nameTagCorner.CornerRadius = UDim.new(0, 6)
+nameTagCorner.Parent = nameTagBtn
+
+local isNameTagActive = false
+local nameTags = {}
+
+nameTagBtn.MouseButton1Click:Connect(function()
+    isNameTagActive = not isNameTagActive
+    if isNameTagActive then
+        nameTagBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 150)
+        for _, p in ipairs(players:GetPlayers()) do
+            if p ~= localPlayer and p.Ch
