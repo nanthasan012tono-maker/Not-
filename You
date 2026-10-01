@@ -1,0 +1,157 @@
+-- บริการและตัวแปรหลัก
+local players = game:GetService("Players")
+local teleportService = game:GetService("TeleportService")
+local localPlayer = players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- ตั้งรหัสผ่านเป็น tono ตามที่คุณต้องการ
+local correctPassword = "tono" 
+
+-- สร้างหน้าจอหลัก (ScreenGui)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MyGameThaiMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- กรอบเมนูหลัก (ขนาดกะทัดรัด)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 240, 0, 260)
+mainFrame.Position = UDim2.new(0.05, 0, 0.25, 0)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0, 10)
+uiCorner.Parent = mainFrame
+
+-- หัวข้อเมนู
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "กรุณาใส่รหัสผ่าน"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 18
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.Parent = mainFrame
+
+-- ช่องกรอกรหัสผ่าน (TextBox)
+local passwordBox = Instance.new("TextBox")
+passwordBox.Size = UDim2.new(0.85, 0, 0, 35)
+passwordBox.Position = UDim2.new(0.075, 0, 0.2, 0)
+passwordBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+passwordBox.Text = ""
+passwordBox.PlaceholderText = "ใส่รหัสที่นี่..."
+passwordBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+passwordBox.TextSize = 14
+passwordBox.Font = Enum.Font.SourceSans
+passwordBox.Parent = mainFrame
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = passwordBox
+
+-- ปุ่มยืนยันรหัส
+local loginBtn = Instance.new("TextButton")
+loginBtn.Size = UDim2.new(0.85, 0, 0, 35)
+loginBtn.Position = UDim2.new(0.075, 0, 0.38, 0)
+loginBtn.BackgroundColor3 = Color3.fromRGB(0, 150, 100)
+loginBtn.Text = "ยืนยันรหัสผ่าน"
+loginBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+loginBtn.TextSize = 14
+loginBtn.Font = Enum.Font.SourceSansBold
+loginBtn.Parent = mainFrame
+
+local btnCornerLogin = Instance.new("UICorner")
+btnCornerLogin.CornerRadius = UDim.new(0, 6)
+btnCornerLogin.Parent = loginBtn
+
+-- ---------------------------------------------------------
+-- ฟังก์ชันและปุ่มเมนูหลัก (จะถูกซ่อนไว้จนกว่าจะใส่รหัสถูก)
+-- ---------------------------------------------------------
+
+-- 1. ปุ่มเปลี่ยนเซิร์ฟเวอร์
+local teleportBtn = Instance.new("TextButton")
+teleportBtn.Size = UDim2.new(0.85, 0, 0, 35)
+teleportBtn.Position = UDim2.new(0.075, 0, 0.55, 0)
+teleportBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 215)
+teleportBtn.Text = "เปลี่ยนเซิร์ฟเวอร์"
+teleportBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleportBtn.TextSize = 14
+teleportBtn.Font = Enum.Font.SourceSansBold
+teleportBtn.Visible = false
+teleportBtn.Parent = mainFrame
+
+local btnCorner1 = Instance.new("UICorner")
+btnCorner1.CornerRadius = UDim.new(0, 6)
+btnCorner1.Parent = teleportBtn
+
+teleportBtn.MouseButton1Click:Connect(function()
+    local success, err = pcall(function()
+        teleportService:Teleport(game.PlaceId, localPlayer)
+    end)
+    if not success then
+        print("ไม่สามารถย้ายเซิร์ฟได้ในโหมดทดสอบ Studio: " .. tostring(err))
+    end
+end)
+
+-- 2. ปุ่มเปิด/ปิดไฮไลต์ผู้เล่นอื่น
+local highlightBtn = Instance.new("TextButton")
+highlightBtn.Size = UDim2.new(0.85, 0, 0, 35)
+highlightBtn.Position = UDim2.new(0.075, 0, 0.72, 0)
+highlightBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+highlightBtn.Text = "เปิด/ปิด ไฮไลต์ผู้เล่น"
+highlightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+highlightBtn.TextSize = 14
+highlightBtn.Font = Enum.Font.SourceSansBold
+highlightBtn.Visible = false
+highlightBtn.Parent = mainFrame
+
+local btnCorner2 = Instance.new("UICorner")
+btnCorner2.CornerRadius = UDim.new(0, 6)
+btnCorner2.Parent = highlightBtn
+
+local isHighlightActive = false
+local highlights = {}
+
+highlightBtn.MouseButton1Click:Connect(function()
+    isHighlightActive = not isHighlightActive
+    
+    if isHighlightActive then
+        highlightBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+        for _, p in ipairs(players:GetPlayers()) do
+            if p ~= localPlayer and p.Character then
+                local hl = Instance.new("Highlight")
+                hl.Name = "GameHighlight"
+                hl.FillColor = Color3.fromRGB(0, 255, 255)
+                hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+                hl.Parent = p.Character
+                table.insert(highlights, hl)
+            end
+        end
+    else
+        highlightBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+        for _, hl in ipairs(highlights) do
+            if hl then hl:Destroy() end
+        end
+        highlights = {}
+    end
+end)
+
+-- ระบบตรวจสอบรหัสผ่าน
+loginBtn.MouseButton1Click:Connect(function()
+    if passwordBox.Text == correctPassword then
+        -- ถ้ารหัสถูก ซ่อนช่องใส่รหัสแล้วแสดงเมนูหลัก
+        passwordBox.Visible = false
+        loginBtn.Visible = false
+        titleLabel.Text = "เมนูเกมของคุณ"
+        teleportBtn.Visible = true
+        highlightBtn.Visible = true
+        mainFrame.Size = UDim2.new(0, 240, 0, 180)
+    else
+        -- ถ้ารหัสผิด แจ้งเตือนที่หัวข้อ
+        titleLabel.Text = "รหัสผ่านไม่ถูกต้อง!"
+        task.wait(1.5)
+        titleLabel.Text = "กรุณาใส่รหัสผ่าน"
+    end
+end)
