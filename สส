@@ -1,0 +1,355 @@
+-- บริการและตัวแปรหลัก
+local players = game:GetService("Players")
+local teleportService = game:GetService("TeleportService")
+local localPlayer = players.LocalPlayer
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+local correctPassword = "tono"
+
+-- สร้างหน้าจอหลัก (ScreenGui)
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CustomModernMenu"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- กรอบเมนูหลักสไตล์โมเดิร์น (โทนสีดำ-ม่วงเข้ม)
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 480, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -240, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(20, 18, 25)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+local mainStroke = Instance.new("UIStroke")
+mainStroke.Color = Color3.fromRGB(80, 50, 120)
+mainStroke.Thickness = 1.5
+mainStroke.Parent = mainFrame
+
+-- แถบเมนูด้านซ้าย (Sidebar)
+local sideBar = Instance.new("Frame")
+sideBar.Size = UDim2.new(0, 45, 1, 0)
+sideBar.BackgroundColor3 = Color3.fromRGB(15, 14, 20)
+sideBar.BorderSizePixel = 0
+sideBar.Parent = mainFrame
+
+local sideCorner = Instance.new("UICorner")
+sideCorner.CornerRadius = UDim.new(0, 8)
+sideCorner.Parent = sideBar
+
+-- โลโก้หรือไอคอนมุมซ้ายบน
+local logoLabel = Instance.new("TextLabel")
+logoLabel.Size = UDim2.new(0, 45, 0, 45)
+logoLabel.BackgroundTransparency = 1
+logoLabel.Text = "🕊️"
+logoLabel.TextSize = 20
+logoLabel.Parent = sideBar
+
+-- ช่องค้นหาด้านบน (Search Bar)
+local searchBar = Instance.new("TextBox")
+searchBar.Size = UDim2.new(1, -60, 0, 30)
+searchBar.Position = UDim2.new(0, 55, 0, 10)
+searchBar.BackgroundColor3 = Color3.fromRGB(30, 26, 40)
+searchBar.Text = ""
+searchBar.PlaceholderText = "  Search..."
+searchBar.TextColor3 = Color3.fromRGB(200, 200, 200)
+searchBar.TextSize = 13
+searchBar.Font = Enum.Font.SourceSans
+searchBar.Parent = mainFrame
+
+local searchCorner = Instance.new("UICorner")
+searchCorner.CornerRadius = UDim.new(0, 6)
+searchCorner.Parent = searchBar
+
+-- ปุ่มปิด/เปิดเมนู (มุมขวาบน)
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 30, 0, 30)
+toggleBtn.Position = UDim2.new(1, -35, 0, 10)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(40, 35, 55)
+toggleBtn.Text = "-"
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 16
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.Parent = mainFrame
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleBtn
+
+-- ---------------------------------------------------------
+-- หน้าต่างใส่รหัสผ่าน (Login View)
+-- ---------------------------------------------------------
+local loginContainer = Instance.new("Frame")
+loginContainer.Size = UDim2.new(1, -55, 1, -50)
+loginContainer.Position = UDim2.new(0, 50, 0, 45)
+loginContainer.BackgroundTransparency = 1
+loginContainer.Parent = mainFrame
+
+local passBox = Instance.new("TextBox")
+passBox.Size = UDim2.new(0.6, 0, 0, 35)
+passBox.Position = UDim2.new(0.2, 0, 0.3, 0)
+passBox.BackgroundColor3 = Color3.fromRGB(35, 30, 45)
+passBox.Text = ""
+passBox.PlaceholderText = "กรอกรหัสผ่าน (tono)..."
+passBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+passBox.TextSize = 14
+passBox.Font = Enum.Font.SourceSans
+passBox.Parent = loginContainer
+
+local passCorner = Instance.new("UICorner")
+passCorner.CornerRadius = UDim.new(0, 6)
+passCorner.Parent = passBox
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.6, 0, 0, 35)
+submitBtn.Position = UDim2.new(0.2, 0, 0.48, 0)
+submitBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 160)
+submitBtn.Text = "ยืนยันรหัสผ่าน"
+submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitBtn.TextSize = 14
+submitBtn.Font = Enum.Font.SourceSansBold
+submitBtn.Parent = loginContainer
+
+local subCorner = Instance.new("UICorner")
+subCorner.CornerRadius = UDim.new(0, 6)
+subCorner.Parent = submitBtn
+
+-- ---------------------------------------------------------
+-- เมนูฟังก์ชันหลัก (จะแสดงเมื่อใส่รหัสถูกต้อง)
+-- ---------------------------------------------------------
+local contentContainer = Instance.new("Frame")
+contentContainer.Size = UDim2.new(1, -55, 1, -50)
+contentContainer.Position = UDim2.new(0, 50, 0, 45)
+contentContainer.BackgroundTransparency = 1
+contentContainer.Visible = false
+contentContainer.Parent = mainFrame
+
+-- 1. ช่องกรอก JobId เซิร์ฟเวอร์
+local serverBox = Instance.new("TextBox")
+serverBox.Size = UDim2.new(0.9, 0, 0, 30)
+serverBox.Position = UDim2.new(0.05, 0, 0.02, 0)
+serverBox.BackgroundColor3 = Color3.fromRGB(35, 30, 45)
+serverBox.Text = ""
+serverBox.PlaceholderText = "วางรหัสเซิร์ฟเวอร์ (JobId)..."
+serverBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+serverBox.TextSize = 13
+serverBox.Parent = contentContainer
+
+local sBoxCorner = Instance.new("UICorner")
+sBoxCorner.CornerRadius = UDim.new(0, 6)
+sBoxCorner.Parent = serverBox
+
+-- ปุ่มเปลี่ยนเซิร์ฟเวอร์ (🌍)
+local tpBtn = Instance.new("TextButton")
+tpBtn.Size = UDim2.new(0.9, 0, 0, 30)
+tpBtn.Position = UDim2.new(0.05, 0, 0.17, 0)
+tpBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+tpBtn.Text = "🌍 เปลี่ยนเซิร์ฟเวอร์"
+tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBtn.TextSize = 14
+tpBtn.Font = Enum.Font.SourceSansBold
+tpBtn.Parent = contentContainer
+
+local tpCorner = Instance.new("UICorner")
+tpCorner.CornerRadius = UDim.new(0, 6)
+tpCorner.Parent = tpBtn
+
+tpBtn.MouseButton1Click:Connect(function()
+    local jobId = serverBox.Text
+    if jobId ~= "" then
+        pcall(function()
+            teleportService:TeleportToPlaceInstance(game.PlaceId, jobId, localPlayer)
+        end)
+    else
+        print("กรุณากรอก JobId ก่อน")
+    end
+end)
+
+-- ปุ่มดูข้อมูลผู้เล่น (👤)
+local inspectBtn = Instance.new("TextButton")
+inspectBtn.Size = UDim2.new(0.9, 0, 0, 30)
+inspectBtn.Position = UDim2.new(0.05, 0, 0.32, 0)
+inspectBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+inspectBtn.Text = "👤 ดูข้อมูลผู้เล่นอื่น"
+inspectBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+inspectBtn.TextSize = 14
+inspectBtn.Font = Enum.Font.SourceSansBold
+inspectBtn.Parent = contentContainer
+
+local insCorner = Instance.new("UICorner")
+insCorner.CornerRadius = UDim.new(0, 6)
+insCorner.Parent = inspectBtn
+
+inspectBtn.MouseButton1Click:Connect(function()
+    print("--- รายชื่อและไอเทมในตัวผู้เล่น ---")
+    for _, p in ipairs(players:GetPlayers()) do
+        if p ~= localPlayer and p.Character then
+            print("ผู้เล่น: " .. p.Name)
+            local bp = p:FindFirstChildOfClass("Backpack")
+            if bp then
+                for _, item in ipairs(bp:GetChildren()) do
+                    print("  - กระเป๋า: " .. item.Name)
+                end
+            end
+        end
+    end
+end)
+
+-- ปุ่มมองเห็นตัวผู้เล่นอื่นเป็นสีแดงรอบตัว (🔴)
+local espBtn = Instance.new("TextButton")
+espBtn.Size = UDim2.new(0.9, 0, 0, 30)
+espBtn.Position = UDim2.new(0.05, 0, 0.47, 0)
+espBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+espBtn.Text = "🔴 เปิด/ปิด ตัวแดง (ESP)"
+espBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+espBtn.TextSize = 14
+espBtn.Font = Enum.Font.SourceSansBold
+espBtn.Parent = contentContainer
+
+local espCorner = Instance.new("UICorner")
+espCorner.CornerRadius = UDim.new(0, 6)
+espCorner.Parent = espBtn
+
+local isEspActive = false
+local espHighlights = {}
+
+espBtn.MouseButton1Click:Connect(function()
+    isEspActive = not isEspActive
+    if isEspActive then
+        espBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+        for _, p in ipairs(players:GetPlayers()) do
+            if p ~= localPlayer and p.Character then
+                local hl = Instance.new("Highlight")
+                hl.Name = "CustomRedESP"
+                hl.FillColor = Color3.fromRGB(255, 0, 0) -- ไส้ในสีแดง
+                hl.FillTransparency = 0.5
+                hl.OutlineColor = Color3.fromRGB(255, 255, 255) -- ขอบสีขาวตัดเด่นชัด
+                hl.OutlineTransparency = 0
+                hl.Parent = p.Character
+                table.insert(espHighlights, hl)
+            end
+        end
+    else
+        espBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+        for _, hl in ipairs(espHighlights) do
+            if hl then hl:Destroy() end
+        end
+        espHighlights = {}
+    end
+end)
+
+-- ปุ่มแสดงชื่อทุกคนในเซิร์ฟ (🏷️)
+local nameTagBtn = Instance.new("TextButton")
+nameTagBtn.Size = UDim2.new(0.9, 0, 0, 30)
+nameTagBtn.Position = UDim2.new(0.05, 0, 0.62, 0)
+nameTagBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+nameTagBtn.Text = "🏷️ เปิด/ปิด เห็นชื่อทุกคน"
+nameTagBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameTagBtn.TextSize = 14
+nameTagBtn.Font = Enum.Font.SourceSansBold
+nameTagBtn.Parent = contentContainer
+
+local nameTagCorner = Instance.new("UICorner")
+nameTagCorner.CornerRadius = UDim.new(0, 6)
+nameTagCorner.Parent = nameTagBtn
+
+local isNameTagActive = false
+local nameTags = {}
+
+nameTagBtn.MouseButton1Click:Connect(function()
+    isNameTagActive = not isNameTagActive
+    if isNameTagActive then
+        nameTagBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 150)
+        for _, p in ipairs(players:GetPlayers()) do
+            if p ~= localPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                local bg = Instance.new("BillboardGui")
+                bg.Name = "CustomNameTag"
+                bg.Size = UDim2.new(0, 100, 0, 40)
+                bg.StudsOffset = Vector3.new(0, 2.5, 0)
+                bg.AlwaysOnTop = true
+                bg.Parent = p.Character.Head
+
+                local txt = Instance.new("TextLabel")
+                txt.Size = UDim2.new(1, 0, 1, 0)
+                txt.BackgroundTransparency = 1
+                txt.Text = p.Name
+                txt.TextColor3 = Color3.fromRGB(255, 255, 255)
+                txt.TextStrokeTransparency = 0
+                txt.TextSize = 14
+                txt.Font = Enum.Font.SourceSansBold
+                txt.Parent = bg
+
+                table.insert(nameTags, bg)
+            end
+        end
+    else
+        nameTagBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+        for _, tag in ipairs(nameTags) do
+            if tag then tag:Destroy() end
+        end
+        nameTags = {}
+    end
+end)
+
+-- ปุ่มล็อคหัว (🎯)
+local aimbotBtn = Instance.new("TextButton")
+aimbotBtn.Size = UDim2.new(0.9, 0, 0, 30)
+aimbotBtn.Position = UDim2.new(0.05, 0, 0.77, 0)
+aimbotBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+aimbotBtn.Text = "🎯 เปิด/ปิด ล็อคหัว"
+aimbotBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+aimbotBtn.TextSize = 14
+aimbotBtn.Font = Enum.Font.SourceSansBold
+aimbotBtn.Parent = contentContainer
+
+local aimCorner = Instance.new("UICorner")
+aimCorner.CornerRadius = UDim.new(0, 6)
+aimCorner.Parent = aimbotBtn
+
+local isAimbotActive = false
+aimbotBtn.MouseButton1Click:Connect(function()
+    isAimbotActive = not isAimbotActive
+    if isAimbotActive then
+        aimbotBtn.BackgroundColor3 = Color3.fromRGB(100, 40, 150)
+        print("เปิดใช้งานล็อคหัวแล้ว")
+    else
+        aimbotBtn.BackgroundColor3 = Color3.fromRGB(60, 40, 100)
+        print("ปิดใช้งานล็อคหัวแล้ว")
+    end
+end)
+
+-- ตรวจสอบรหัสผ่าน
+submitBtn.MouseButton1Click:Connect(function()
+    if passBox.Text == correctPassword then
+        loginContainer.Visible = false
+        contentContainer.Visible = true
+    else
+        passBox.Text = ""
+        passBox.PlaceholderText = "รหัสผ่านไม่ถูกต้อง!"
+    end
+end)
+
+-- ระบบปิด/เปิดย่อหน้าต่างเมนู
+local isOpen = true
+toggleBtn.MouseButton1Click:Connect(function()
+    isOpen = not isOpen
+    sideBar.Visible = isOpen
+    searchBar.Visible = isOpen
+    if loginContainer.Visible then
+        loginContainer.Visible = isOpen
+    end
+    if contentContainer.Visible then
+        contentContainer.Visible = isOpen
+    end
+    
+    if isOpen then
+        toggleBtn.Text = "-"
+        mainFrame.Size = UDim2.new(0, 480, 0, 400)
+    else
+        toggleBtn.Text = "+"
+        mainFrame.Size = UDim2.new(0, 480, 0, 50)
+    end
+end)
