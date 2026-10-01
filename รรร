@@ -1,0 +1,100 @@
+-- บริการและตัวแปรหลัก
+local players = game:GetService("Players")
+local runService = game:GetService("RunService")
+local localPlayer = players.LocalPlayer
+local coreGui = game:GetService("CoreGui")
+local playerGui = localPlayer:WaitForChild("PlayerGui")
+
+-- รายชื่อไอเทมทั้งหมดที่ต้องการตรวจสอบ
+local targetItems = {
+    "Purple Shovel", "Wrench", "Axe", "Tactical Shovel", "Tactical Knife", "Tac Knife",
+    "P226 Pistol", "Anaconda Revolver", "Double Barrel Shotgun", "Broken Double Barrel Shotgun",
+    "Short Barrel Shotgun", "Remington Shotgun", "Uzi SMG", "MP5 SMG", "Draco Rifle",
+    "M16 Rifle", "AK-47 Rifle", "Crossbow", "RPG", "Molotov Coctail", "Surgical Gloves",
+    "Energy Shot", "Blood Bag", "Medkit", "Lockpick", "Hack Tools", "Skimmers",
+    "Shiesty Mask", "Bipod", "Scopes", "Car Brakes"
+}
+
+-- โฟลเดอร์เก็บ ESP
+local espFolder = coreGui:FindFirstChild("SimpleESPFolder")
+if espFolder then espFolder:Destroy() end
+
+espFolder = Instance.new("Folder")
+espFolder.Name = "SimpleESPFolder"
+espFolder.Parent = coreGui
+
+-- ฟังก์ชันเช็กไอเทมที่ผู้เล่นถือ/พก
+local function getPlayerItems(p)
+    local itemsFound = {}
+    local containers = {}
+    if p.Character then table.insert(containers, p.Character) end
+    local backpack = p:FindFirstChildOfClass("Backpack")
+    if backpack then table.insert(containers, backpack) end
+
+    for _, container in ipairs(containers) do
+        for _, item in ipairs(container:GetChildren()) do
+            for _, targetName in ipairs(targetItems) do
+                if string.lower(item.Name) == string.lower(targetName) then
+                    table.insert(itemsFound, item.Name)
+                end
+            end
+        end
+    end
+    return #itemsFound > 0 and table.concat(itemsFound, ", ") or "ไม่มีไอเทมเป้าหมาย"
+end
+
+-- สร้างระบบมองทะลุ + ชื่อไอเทมใต้เท้า
+local function applyESP(p)
+    if p == localPlayer then return end
+
+    local function setupChar(char)
+        -- 1. ไฮไลท์ตัวมองทะลุกำแพง
+        if not char:FindFirstChild("ESP_Highlight") then
+            local hl = Instance.new("Highlight")
+            hl.Name = "ESP_Highlight"
+            hl.Adornee = char
+            hl.FillColor = Color3.fromRGB(255, 0, 0)
+            hl.FillTransparency = 0.5
+            hl.OutlineColor = Color3.fromRGB(255, 255, 255)
+            hl.OutlineTransparency = 0
+            hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            hl.Parent = espFolder
+        end
+
+        -- 2. ป้ายชื่อไอเทมลอยใต้เท้า (ติดกับ HumanoidRootPart)
+        local rootPart = char:FindFirstChild("HumanoidRootPart")
+        if rootPart and not char:FindFirstChild("ItemFootTag") then
+            local bg = Instance.new("BillboardGui")
+            bg.Name = "ItemFootTag"
+            bg.Size = UDim2.new(0, 200, 0, 50)
+            bg.StudsOffset = Vector3.new(0, -3.5, 0) -- ปรับให้อยู่บริเวณใต้เท้า
+            bg.AlwaysOnTop = true
+            bg.Parent = char
+
+            local txt = Instance.new("TextLabel")
+            txt.Name = "FootText"
+            txt.Size = UDim2.new(1, 0, 1, 0)
+            txt.BackgroundTransparency = 1
+            txt.TextColor3 = Color3.fromRGB(0, 255, 255) -- สีฟ้าอมเขียว มองเห็นชัดเจน
+            txt.TextStrokeTransparency = 0
+            txt.TextSize = 13
+            txt.Font = Enum.Font.SourceSansBold
+            txt.Text = "กำลังโหลด..."
+            txt.Parent = bg
+
+            -- อัปเดตชื่อไอเทมใต้เท้าแบบเรียลไทม์
+            task.spawn(function()
+                while char and char.Parent do
+                    txt.Text = "📦 " .. getPlayerItems(p)
+                    task.wait(1) -- อัปเดตทุกๆ 1 วินาที
+                end
+            end)
+        end
+    end
+
+    if p.Character then setupChar(p.Character) end
+    p.CharacterAdded:Connect(setupChar)
+end
+
+for _, p in ipairs(players:GetPlayers()) do applyESP(p) end
+players.PlayerAdded:Connect(applyESP)
