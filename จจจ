@@ -1,0 +1,92 @@
+-- ตรวจสอบและดึงข้อมูลไอเทมของผู้เล่น
+local okItems, items = pcall(getItems, p)
+if not okItems then items = {} end
+local best = getBestItem(items)
+
+-- ป้ายชื่อ (หัว)
+local head = char:FindFirstChild("Head")
+if nameTagOn and head and not head:FindFirstChild("JackNameTag") then
+    local bg = new("BillboardGui", {
+        Name = "JackNameTag",
+        Size = UDim2.new(0, 170, 0, 30),
+        StudsOffset = Vector3.new(0, 2.4, 0),
+        AlwaysOnTop = true,
+    }, head)
+    new("TextLabel", {
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        Text = p.DisplayName .. " (@" .. p.Name .. ")",
+        TextColor3 = Color3.fromRGB(255, 255, 255),
+        TextStrokeTransparency = 0,
+        TextSize = 13, Font = FONT,
+    }, bg)
+end
+
+-- ป้ายหัว "ของดีที่สุด" (อยู่ล่างป้ายชื่อ)
+if headTagOn and head and not head:FindFirstChild("JackHeadTag") then
+    local bg = new("BillboardGui", {
+        Name = "JackHeadTag",
+        Size = UDim2.new(0, 200, 0, 22),
+        StudsOffset = Vector3.new(0, 1.4, 0),
+        AlwaysOnTop = true,
+    }, head)
+    new("TextLabel", {
+        Name = "TagText",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        RichText = true,
+        Text = "...",
+        TextStrokeTransparency = 0,
+        TextSize = 12, Font = FONT,
+    }, bg)
+end
+
+if headTagOn then
+    local tag = head and head:FindFirstChild("JackHeadTag")
+    if tag then
+        local txt = "👤 ไม่มีของโชว์"
+        if best then
+            txt = "👑 " .. '<font color="#' .. best.hex .. '">'
+                .. escRich(best.name) .. "</font>"
+        end
+        if lastHeadTexts[p.Name] ~= txt then
+            lastHeadTexts[p.Name] = txt
+            tag.TagText.Text = txt
+        end
+    end
+end
+
+-- ป้ายไอเทมใต้เท้า (ชื่อของเรือสำแดงสีตาม rarity)
+local root = char:FindFirstChild("HumanoidRootPart")
+if footTagOn and root and not char:FindFirstChild("JackFootTag") then
+    local bg = new("BillboardGui", {
+        Name = "JackFootTag",
+        Adornee = root,
+        Size = UDim2.new(0, 320, 0, 26),
+        StudsOffset = Vector3.new(0, -3.6, 0),
+        AlwaysOnTop = true,
+    }, char)
+    new("TextLabel", {
+        Name = "TagText",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundTransparency = 1,
+        RichText = true,
+        Text = "📦 ...",
+        TextStrokeTransparency = 0,
+        TextSize = 13, Font = FONT,
+    }, bg)
+end
+
+if footTagOn then
+    local tag = char:FindFirstChild("JackFootTag")
+    if tag then
+        local txt
+        if #items == 0 then
+            txt = "📦 ไม่มีของโชว์"
+        else
+            -- ใส่ได้สูงสุด 5 ชิ้น สีตาม rarity ของแต่ละชิ้น
+            local shown = math.min(#items, 5)
+            -- (เพิ่มโค้ดส่วนแสดงผลไอเทมต่อตรงนี้ตามต้นฉบับของคุณ)
+        end
+    end
+end
