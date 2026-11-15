@@ -1,0 +1,539 @@
+-- ==========================================
+-- Urban Reload - Secure Timed Key Farm Hub
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+-- ระบบไฟล์เซฟข้อมูลคีย์ในเครื่อง
+local KEY_FILE_NAME = "UrbanReload_TimedKeySession.json"
+
+local FarmConfig = {
+	MenuKey = Enum.KeyCode.RightControl,
+	LockNPC = false,          
+	AutoShoot = false,        
+	ShootDelay = 0.05,        
+	MaxDistance = 600,        
+	SkeletonESP = false,      
+	MenuVisible = true
+}
+
+-- ==========================================
+-- ฐานข้อมูลคีย์ (รายชั่วโมง / รายวัน / เจ้าของ)
+-- ==========================================
+local DatabaseKeys = {
+	-- คีย์มาสเตอร์สำหรับเจ้าของสคริปต์ (ใช้งานได้ตลอดชีพ)
+	OwnerKeys = {
+		"OWNER-KEY-URBAN-9999"
+	},
+	
+	-- คีย์รายชั่วโมง (100 คีย์)
+	HourKeys = {
+		"HKEY-9821-XQ", "HKEY-4123-AB", "HKEY-7712-ZX", "HKEY-3341-LM", "HKEY-8829-QQ",
+		"HKEY-1123-TY", "HKEY-5542-UI", "HKEY-6631-OP", "HKEY-2219-AS", "HKEY-9948-DF",
+		"HKEY-6541-GH", "HKEY-3214-JK", "HKEY-7896-LZ", "HKEY-4561-XCV", "HKEY-1239-BNM",
+		"HKEY-9871-QWE", "HKEY-8523-RTY", "HKEY-9632-UIO", "HKEY-7412-ASD", "HKEY-3698-FGH",
+		"HKEY-1478-JKL", "HKEY-2583-ZXC", "HKEY-3691-VBN", "HKEY-7531-POI", "HKEY-9517-LKJ",
+		"HKEY-8524-HGF", "HKEY-3571-DSA", "HKEY-1593-REW", "HKEY-7539-QAZ", "HKEY-4562-WSX",
+		"HKEY-7893-EDC", "HKEY-1236-RFV", "HKEY-4569-TGB", "HKEY-7891-YHN", "HKEY-3216-UJM",
+		"HKEY-6549-IKL", "HKEY-9872-OPP", "HKEY-1144-ZZZ", "HKEY-2255-XXX", "HKEY-3366-CCC",
+		"HKEY-4477-VVV", "HKEY-5588-BBB", "HKEY-6699-NNN", "HKEY-7700-MMM", "HKEY-8811-AAA",
+		"HKEY-9922-SSS", "HKEY-1033-DDD", "HKEY-2144-FFF", "HKEY-3255-GGG", "HKEY-4366-HHH",
+		"HKEY-5477-JJJ", "HKEY-6588-KKK", "HKEY-7699-LLL", "HKEY-8700-QQQ", "HKEY-9811-WWW",
+		"HKEY-1922-EEE", "HKEY-2833-RRR", "HKEY-3744-TTT", "HKEY-4655-YYY", "HKEY-5566-UUU",
+		"HKEY-6477-III", "HKEY-7388-OOO", "HKEY-8299-PPP", "HKEY-9100-M11", "HKEY-1201-M22",
+		"HKEY-2302-M33", "HKEY-3403-M44", "HKEY-4504-M55", "HKEY-5605-M66", "HKEY-6706-M77",
+		"HKEY-7807-M88", "HKEY-8908-M99", "HKEY-9009-N11", "HKEY-1110-N22", "HKEY-2220-N33",
+		"HKEY-3330-N44", "HKEY-4440-N55", "HKEY-5550-N66", "HKEY-6660-N77", "HKEY-7770-N88",
+		"HKEY-8880-N99", "HKEY-9990-P11", "HKEY-1234-P22", "HKEY-5678-P33", "HKEY-9012-P44",
+		"HKEY-3456-P55", "HKEY-7890-P66", "HKEY-2468-P77", "HKEY-1357-P88", "HKEY-8642-P99",
+		"HKEY-9753-K11", "HKEY-1597-K22", "HKEY-7535-K33", "HKEY-8526-K44", "HKEY-9514-K55",
+		"HKEY-3579-K66", "HKEY-1472-K78", "HKEY-2589-K89", "HKEY-3692-K90", "HKEY-7410-FIN"
+	},
+	
+	-- คีย์รายวัน (200 คีย์)
+	DayKeys = {
+		"DKEY-1001-AXX", "DKEY-1002-BXX", "DKEY-1003-CXX", "DKEY-1004-DXX", "DKEY-1005-EXX",
+		"DKEY-1006-FXX", "DKEY-1007-GXX", "DKEY-1008-HXX", "DKEY-1009-IXX", "DKEY-1010-JXX",
+		"DKEY-1011-KXX", "DKEY-1012-LXX", "DKEY-1013-MXX", "DKEY-1014-NXX", "DKEY-1015-OXX",
+		"DKEY-1016-PXX", "DKEY-1017-QXX", "DKEY-1018-RXX", "DKEY-1019-SXX", "DKEY-1020-TXX",
+		"DKEY-1021-UXX", "DKEY-1022-VXX", "DKEY-1023-WXX", "DKEY-1024-XXX", "DKEY-1025-YXX",
+		"DKEY-1026-ZXX", "DKEY-1027-111", "DKEY-1028-222", "DKEY-1029-333", "DKEY-1030-444",
+		"DKEY-1031-555", "DKEY-1032-666", "DKEY-1033-777", "DKEY-1034-888", "DKEY-1035-999",
+		"DKEY-1036-ABC", "DKEY-1037-DEF", "DKEY-1038-GHI", "DKEY-1039-JKL", "DKEY-1040-MNO",
+		"DKEY-1041-PQR", "DKEY-1042-STU", "DKEY-1043-VWX", "DKEY-1044-YZ1", "DKEY-1045-234",
+		"DKEY-1046-567", "DKEY-1047-890", "DKEY-1048-AAA", "DKEY-1049-BBB", "DKEY-1050-CCC",
+		"DKEY-1051-DDD", "DKEY-1052-EEE", "DKEY-1053-FFF", "DKEY-1054-GGG", "DKEY-1055-HHH",
+		"DKEY-1056-III", "DKEY-1057-JJJ", "DKEY-1058-KKK", "DKEY-1059-LLL", "DKEY-1060-MMM",
+		"DKEY-1061-NNN", "DKEY-1062-OOO", "DKEY-1063-PPP", "DKEY-1064-QQQ", "DKEY-1065-RRR",
+		"DKEY-1066-SSS", "DKEY-1067-TTT", "DKEY-1068-UUU", "DKEY-1069-VVV", "DKEY-1070-WWW",
+		"DKEY-1071-XXX", "DKEY-1072-YYY", "DKEY-1073-ZZZ", "DKEY-1074-909", "DKEY-1075-808",
+		"DKEY-1076-707", "DKEY-1077-606", "DKEY-1078-505", "DKEY-1079-404", "DKEY-1080-303",
+		"DKEY-1081-202", "DKEY-1082-101", "DKEY-1083-212", "DKEY-1084-323", "DKEY-1085-434",
+		"DKEY-1086-545", "DKEY-1087-656", "DKEY-1088-767", "DKEY-1089-878", "DKEY-1090-989",
+		"DKEY-1091-L01", "DKEY-1092-L02", "DKEY-1093-L03", "DKEY-1094-L04", "DKEY-1095-L05",
+		"DKEY-1096-L06", "DKEY-1097-L07", "DKEY-1098-L08", "DKEY-1099-L09", "DKEY-1100-L10",
+		"DKEY-1101-X1", "DKEY-1102-X2", "DKEY-1103-X3", "DKEY-1104-X4", "DKEY-1105-X5",
+		"DKEY-1106-X6", "DKEY-1107-X7", "DKEY-1108-X8", "DKEY-1109-X9", "DKEY-1110-X10",
+		"DKEY-1111-Y1", "DKEY-1112-Y2", "DKEY-1113-Y3", "DKEY-1114-Y4", "DKEY-1115-Y5",
+		"DKEY-1116-Y6", "DKEY-1117-Y7", "DKEY-1118-Y8", "DKEY-1119-Y9", "DKEY-1120-Y10",
+		"DKEY-1121-Z1", "DKEY-1122-Z2", "DKEY-1123-Z3", "DKEY-1124-Z4", "DKEY-1125-Z5",
+		"DKEY-1126-Z6", "DKEY-1127-Z7", "DKEY-1128-Z8", "DKEY-1129-Z9", "DKEY-1130-Z10",
+		"DKEY-1131-W1", "DKEY-1132-W2", "DKEY-1133-W3", "DKEY-1134-W4", "DKEY-1135-W5",
+		"DKEY-1136-W6", "DKEY-1137-W7", "DKEY-1138-W8", "DKEY-1139-W9", "DKEY-1140-W10",
+		"DKEY-1141-V1", "DKEY-1142-V2", "DKEY-1143-V3", "DKEY-1144-V4", "DKEY-1145-V5",
+		"DKEY-1146-V6", "DKEY-1147-V7", "DKEY-1148-V8", "DKEY-1149-V9", "DKEY-1150-V10",
+		"DKEY-1151-T1", "DKEY-1152-T2", "DKEY-1153-T3", "DKEY-1154-T4", "DKEY-1155-T5",
+		"DKEY-1156-T6", "DKEY-1157-T7", "DKEY-1158-T8", "DKEY-1159-T9", "DKEY-1160-T10",
+		"DKEY-1161-U1", "DKEY-1162-U2", "DKEY-1163-U3", "DKEY-1164-U4", "DKEY-1165-U5",
+		"DKEY-1166-U6", "DKEY-1167-U7", "DKEY-1168-U8", "DKEY-1169-U9", "DKEY-1170-U10",
+		"DKEY-1171-S1", "DKEY-1172-S2", "DKEY-1173-S3", "DKEY-1174-S4", "DKEY-1175-S5",
+		"DKEY-1176-S6", "DKEY-1177-S7", "DKEY-1178-S8", "DKEY-1179-S9", "DKEY-1180-S10",
+		"DKEY-1181-R1", "DKEY-1182-R2", "DKEY-1183-R3", "DKEY-1184-R4", "DKEY-1185-R5",
+		"DKEY-1186-R6", "DKEY-1187-R7", "DKEY-1188-R8", "DKEY-1189-R9", "DKEY-1190-R10",
+		"DKEY-1191-Q1", "DKEY-1192-Q2", "DKEY-1193-Q3", "DKEY-1194-Q4", "DKEY-1195-Q5",
+		"DKEY-1196-Q6", "DKEY-1197-Q7", "DKEY-1198-Q8", "DKEY-1199-Q9", "DKEY-1200-END"
+	}
+}
+
+local currentTarget = nil
+local activeSkeletons = {}
+local lastShotTime = 0
+
+local function randomString(length)
+	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local result = ""
+	for i = 1, length do
+		local rand = math.random(1, #chars)
+		result = result .. chars:sub(rand, rand)
+	end
+	return result
+end
+
+local rootGui = Instance.new("ScreenGui")
+rootGui.Name = randomString(12)
+rootGui.ResetOnSpawn = false
+pcall(function() rootGui.Parent = CoreGui end)
+if not rootGui.Parent then
+	rootGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- ==========================================
+-- ฟังก์ชันตรวจสอบคีย์ (รวม Master Key ของเจ้าของ)
+-- ==========================================
+local function checkKeyInDatabase(inputKey)
+	-- เช็คคีย์เจ้าของ
+	for _, k in ipairs(DatabaseKeys.OwnerKeys) do
+		if k == inputKey then
+			return 31536000, "เจ้าของสคริปต์ (ตลอดชีพ)"
+		end
+	end
+	
+	-- เช็คคีย์รายชั่วโมง
+	for _, k in ipairs(DatabaseKeys.HourKeys) do
+		if k == inputKey then
+			return 3600, "1 ชั่วโมง"
+		end
+	end
+	
+	-- เช็คคีย์รายวัน
+	for _, k in ipairs(DatabaseKeys.DayKeys) do
+		if k == inputKey then
+			return 86400, "1 วัน"
+		end
+	end
+	
+	return 0, nil
+end
+
+local function saveKeySession(duration)
+	local expireTime = os.time() + duration
+	local data = { ExpireAt = expireTime }
+	pcall(function()
+		writefile(KEY_FILE_NAME, HttpService:JSONEncode(data))
+	end)
+end
+
+local function checkExistingSession()
+	if not pcall(function() readfile(KEY_FILE_NAME) end) then
+		return false
+	end
+	
+	local success, result = pcall(function()
+		return HttpService:JSONDecode(readfile(KEY_FILE_NAME))
+	end)
+	
+	if success and result and result.ExpireAt then
+		local timeLeft = result.ExpireAt - os.time()
+		if timeLeft > 0 then
+			return true
+		else
+			pcall(function() delfile(KEY_FILE_NAME) end)
+			return false
+		end
+	end
+	return false
+end
+
+-- ==========================================
+-- 1. หน้าต่างใส่คีย์ (Key System UI)
+-- ==========================================
+local keyOverlay = Instance.new("Frame")
+keyOverlay.Size = UDim2.new(1, 0, 1, 0)
+keyOverlay.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+keyOverlay.BackgroundTransparency = 0.75
+keyOverlay.Parent = rootGui
+
+local keyCard = Instance.new("Frame")
+keyCard.Size = UDim2.new(0, 360, 0, 200)
+keyCard.AnchorPoint = Vector2.new(0.5, 0.5)
+keyCard.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyCard.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+keyCard.Parent = keyOverlay
+
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Color = Color3.fromRGB(80, 255, 120)
+cardStroke.Thickness = 1.5
+cardStroke.Parent = keyCard
+
+local cardCorner = Instance.new("UICorner")
+cardCorner.CornerRadius = UDim.new(0, 10)
+cardCorner.Parent = keyCard
+
+local keyTitle = Instance.new("TextLabel")
+keyTitle.Size = UDim2.new(1, 0, 0, 40)
+keyTitle.Position = UDim2.new(0, 0, 0, 10)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "🛡️ Urban Reload - Key System"
+keyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyTitle.Font = Enum.Font.GothamBold
+keyTitle.TextSize = 13
+keyTitle.Parent = keyCard
+
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(0.85, 0, 0, 38)
+keyBox.Position = UDim2.new(0.075, 0, 0, 60)
+keyBox.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.PlaceholderText = "กรอกคีย์ของคุณที่นี่..."
+keyBox.Font = Enum.Font.Gotham
+keyBox.TextSize = 12
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = keyCard
+
+local boxCorner = Instance.new("UICorner")
+boxCorner.CornerRadius = UDim.new(0, 6)
+boxCorner.Parent = keyBox
+
+local errorNotice = Instance.new("TextLabel")
+errorNotice.Size = UDim2.new(0.85, 0, 0, 25)
+errorNotice.Position = UDim2.new(0.075, 0, 0, 103)
+errorNotice.BackgroundTransparency = 1
+errorNotice.Text = "❌ คีย์ไม่ถูกต้อง กรุณาตรวจสอบใหม่อีกครั้ง"
+errorNotice.TextColor3 = Color3.fromRGB(255, 80, 80)
+errorNotice.Font = Enum.Font.GothamSemibold
+errorNotice.TextSize = 11
+errorNotice.Visible = false
+errorNotice.Parent = keyCard
+
+local verifyBtn = Instance.new("TextButton")
+verifyBtn.Size = UDim2.new(0.85, 0, 0, 36)
+verifyBtn.Position = UDim2.new(0.075, 0, 0, 138)
+verifyBtn.BackgroundColor3 = Color3.fromRGB(50, 200, 100)
+verifyBtn.Text = "ยืนยันคีย์"
+verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+verifyBtn.Font = Enum.Font.GothamBold
+verifyBtn.TextSize = 13
+verifyBtn.Parent = keyCard
+
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 6)
+btnCorner.Parent = verifyBtn
+
+
+-- ==========================================
+-- 2. ระบบค้นหาเฉพาะ NPC ฟาร์ม
+-- ==========================================
+local function getClosestFarmNPCHead()
+	local closestHead = nil
+	local shortestDist = FarmConfig.MaxDistance
+
+	local myChar = localPlayer.Character
+	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+	local myRoot = myChar.HumanoidRootPart
+
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj ~= myChar then
+			local isPlayer = Players:GetPlayerFromCharacter(obj)
+			if not isPlayer then
+				local humanoid = obj:FindFirstChildOfClass("Humanoid")
+				local head = obj:FindFirstChild("Head")
+
+				if humanoid and humanoid.Health > 0 and head then
+					local dist = (head.Position - myRoot.Position).Magnitude
+					if dist < shortestDist then
+						shortestDist = dist
+						closestHead = head
+					end
+				end
+			end
+		end
+	end
+
+	return closestHead
+end
+
+local function triggerShoot()
+	local char = localPlayer.Character
+	if not char then return end
+	
+	local tool = char:FindFirstChildOfClass("Tool")
+	if tool then
+		pcall(function()
+			tool:Activate()
+		end)
+	end
+end
+
+local function updateSkeletonESP()
+	for model, lines in pairs(activeSkeletons) do
+		if not model or not model.Parent or not model:FindFirstChildOfClass("Humanoid") or model:FindFirstChildOfClass("Humanoid").Health <= 0 then
+			for _, line in pairs(lines) do line:Remove() end
+			activeSkeletons[model] = nil
+		end
+	end
+
+	if not FarmConfig.SkeletonESP then return end
+
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj ~= localPlayer.Character then
+			local isPlayer = Players:GetPlayerFromCharacter(obj)
+			if not isPlayer then
+				local humanoid = obj:FindFirstChildOfClass("Humanoid")
+				local head = obj:FindFirstChild("Head")
+				local root = obj:FindFirstChild("HumanoidRootPart")
+
+				if humanoid and humanoid.Health > 0 and head and root then
+					if not activeSkeletons[obj] then
+						local line = Drawing.new("Line")
+						line.Visible = false
+						line.Color = Color3.fromRGB(255, 180, 0)
+						line.Thickness = 1.5
+						activeSkeletons[obj] = {line}
+					end
+
+					local headPos, onScreen1 = camera:WorldToViewportPoint(head.Position)
+					local rootPos, onScreen2 = camera:WorldToViewportPoint(root.Position)
+
+					local lines = activeSkeletons[obj]
+					if onScreen1 and onScreen2 and lines and lines[1] then
+						lines[1].From = Vector2.new(headPos.X, headPos.Y)
+						lines[1].To = Vector2.new(rootPos.X, rootPos.Y)
+						lines[1].Visible = true
+					elseif lines and lines[1] then
+						lines[1].Visible = false
+					end
+				end
+			end
+		end
+	end
+end
+
+
+-- ==========================================
+-- 3. เมนูหลักและการควบคุมระบบ UI
+-- ==========================================
+local mainFrame, openButton
+
+local function buildFarmHub()
+	openButton = Instance.new("TextButton")
+	openButton.Name = "OpenMenuBtn"
+	openButton.Size = UDim2.new(0, 130, 0, 36)
+	openButton.Position = UDim2.new(0.02, 0, 0.12, 0)
+	openButton.BackgroundColor3 = Color3.fromRGB(25, 25, 35)
+	openButton.Text = "⚙️ ซ่อน/เปิดเมนู"
+	openButton.TextColor3 = Color3.fromRGB(80, 255, 120)
+	openButton.Font = Enum.Font.GothamBold
+	openButton.TextSize = 12
+	openButton.Parent = rootGui
+
+	local openCorner = Instance.new("UICorner")
+	openCorner.CornerRadius = UDim.new(0, 6)
+	openCorner.Parent = openButton
+
+	local openStroke = Instance.new("UIStroke")
+	openStroke.Color = Color3.fromRGB(80, 255, 120)
+	openStroke.Thickness = 1
+	openStroke.Parent = openButton
+
+	mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainHubFrame"
+	mainFrame.Size = UDim2.new(0, 300, 0, 280)
+	mainFrame.Position = UDim2.new(0.02, 0, 0.20, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(18, 18, 25)
+	mainFrame.Visible = true
+	mainFrame.Parent = rootGui
+
+	local mainCorner = Instance.new("UICorner")
+	mainCorner.CornerRadius = UDim.new(0, 10)
+	mainCorner.Parent = mainFrame
+
+	local mainStroke = Instance.new("UIStroke")
+	mainStroke.Color = Color3.fromRGB(70, 70, 100)
+	mainStroke.Thickness = 1.5
+	mainStroke.Parent = mainFrame
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, 0, 0, 40)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "⚡ Urban Reload - Farm Hub"
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 13
+	titleLabel.Parent = mainFrame
+
+	local function createToggle(name, posY, configKey, callback)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.9, 0, 0, 42)
+		btn.Position = UDim2.new(0.05, 0, 0, posY)
+		btn.BackgroundColor3 = Color3.fromRGB(28, 28, 40)
+		btn.Font = Enum.Font.GothamSemibold
+		btn.TextSize = 12
+		btn.Parent = mainFrame
+
+		local corner = Instance.new("UICorner")
+		corner.CornerRadius = UDim.new(0, 6)
+		corner.Parent = btn
+
+		local function updateVisual()
+			if FarmConfig[configKey] then
+				btn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Text = name .. " : [ เปิด ]"
+			else
+				btn.BackgroundColor3 = Color3.fromRGB(35, 35, 48)
+				btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+				btn.Text = name .. " : [ ปิด ]"
+			end
+		end
+
+		updateVisual()
+
+		btn.MouseButton1Click:Connect(function()
+			FarmConfig[configKey] = not FarmConfig[configKey]
+			updateVisual()
+			if callback then callback(FarmConfig[configKey]) end
+		end)
+	end
+
+	createToggle("🎯 ล็อคหัว NPC ฟาร์ม (NPC Headlock)", 50, "LockNPC", function(state)
+		if not state then currentTarget = nil end
+	end)
+
+	createToggle("🔫 ยิงอัตโนมัติ (Auto Shoot)", 100, "AutoShoot")
+
+	createToggle("💀 แสดงโครงกระดูก NPC (NPC ESP)", 150, "SkeletonESP", function(state)
+		if not state then
+			for _, lines in pairs(activeSkeletons) do
+				for _, line in pairs(lines) do line:Remove() end
+			end
+			activeSkeletons = {}
+		end
+	end)
+
+	local closeMenuBtn = Instance.new("TextButton")
+	closeMenuBtn.Size = UDim2.new(0.9, 0, 0, 38)
+	closeMenuBtn.Position = UDim2.new(0.05, 0, 0, 215)
+	closeMenuBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 80)
+	closeMenuBtn.Text = "❌ ซ่อนหน้าต่างนี้"
+	closeMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeMenuBtn.Font = Enum.Font.GothamBold
+	closeMenuBtn.TextSize = 12
+	closeMenuBtn.Parent = mainFrame
+
+	local closeCorner = Instance.new("UICorner")
+	closeCorner.CornerRadius = UDim.new(0, 6)
+	closeCorner.Parent = closeMenuBtn
+
+	closeMenuBtn.MouseButton1Click:Connect(function()
+		FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+		mainFrame.Visible = FarmConfig.MenuVisible
+	end)
+
+	openButton.MouseButton1Click:Connect(function()
+		FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+		mainFrame.Visible = FarmConfig.MenuVisible
+	end)
+end
+
+-- ==========================================
+-- 4. ลูปการทำงานเบื้องหลัง (Heartbeat)
+-- ==========================================
+RunService.Heartbeat:Connect(function()
+	if FarmConfig.LockNPC then
+		if not currentTarget or not currentTarget.Parent or (currentTarget.Position - camera.CFrame.Position).Magnitude > FarmConfig.MaxDistance then
+			currentTarget = getClosestFarmNPCHead()
+		end
+
+		if currentTarget then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+		end
+	end
+
+	if FarmConfig.AutoShoot and FarmConfig.LockNPC and currentTarget then
+		local tickTime = tick()
+		if tickTime - lastShotTime >= FarmConfig.ShootDelay then
+			lastShotTime = tickTime
+			triggerShoot()
+		end
+	end
+
+	updateSkeletonESP()
+end)
+
+-- ==========================================
+-- 5. การจัดการปุ่มยืนยันคีย์และระบบตรวจสอบอัตโนมัติ
+-- ==========================================
+verifyBtn.MouseButton1Click:Connect(function()
+	local duration, keyType = checkKeyInDatabase(keyBox.Text)
+	if duration > 0 then
+		saveKeySession(duration)
+		keyOverlay:Destroy()
+		buildFarmHub()
+		print("✅ ปลดล็อกสำเร็จ! ประเภทคีย์: " .. keyType)
+	else
+		errorNotice.Text = "❌ คีย์ไม่ถูกต้องหรือไม่มีในระบบ"
+		errorNotice.Visible = true
+		task.delay(2.5, function()
+			if errorNotice then errorNotice.Visible = false end
+		end)
+	end
+end)
+
+keyBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		verifyBtn:Activate()
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if input.KeyCode == FarmConfig.MenuKey then
+		if mainFrame then
+			FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+			mainFrame.Visible = FarmConfig.MenuVisible
+		end
+	end
+end)
+
+-- ตรวจสอบสิทธิ์อัตโนมัติเมื่อเปิดสคริปต์ครั้งแรก
+if checkExistingSession() then
+	keyOverlay:Destroy()
+	buildFarmHub()
+	print("🔓 ยินดีต้อนรับกลับมา! สิทธิ์การใช้งานยังไม่หมดอายุ")
+end
