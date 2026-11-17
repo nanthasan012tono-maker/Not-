@@ -1,0 +1,135 @@
+-- ==========================================
+-- Block Spin Hub (คีย์: 1)
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local Settings = {
+	PullItems = false,     
+	LockOn = false,        
+	ShowLabels = false,    
+	CrosshairSize = 80,    
+	MaxDistance = 150,     
+	PullDistance = 35,     
+	PullSpeed = 45,        
+	MenuVisible = true
+}
+
+local lockedTarget = nil
+local activeBillboards = {}
+
+-- ฐานข้อมูลอาวุธ Block Spin
+local WeaponDatabase = {
+	["M249"] = {Tier = "OMEGA", Color = Color3.fromRGB(255, 65, 65)},
+	["AWP"] = {Tier = "OMEGA", Color = Color3.fromRGB(255, 65, 65)},
+	["Anaconda"] = {Tier = "OMEGA", Color = Color3.fromRGB(255, 65, 65)},
+	["AK-47"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["RPG"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["Remington"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["M16"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["MP5"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["AUG"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["Tactical Axe"] = {Tier = "LEGENDARY", Color = Color3.fromRGB(255, 200, 40)},
+	["Draco"] = {Tier = "EPIC", Color = Color3.fromRGB(190, 90, 255)},
+	["M24"] = {Tier = "EPIC", Color = Color3.fromRGB(190, 90, 255)},
+	["Double Barrel"] = {Tier = "EPIC", Color = Color3.fromRGB(190, 90, 255)},
+	["Glock"] = {Tier = "RARE", Color = Color3.fromRGB(80, 175, 255)},
+	["Uzi"] = {Tier = "RARE", Color = Color3.fromRGB(80, 175, 255)},
+	["G3"] = {Tier = "UNCOMMON", Color = Color3.fromRGB(100, 220, 110)},
+	["C9"] = {Tier = "UNCOMMON", Color = Color3.fromRGB(100, 220, 110)}
+}
+
+local function getWeaponInfo(toolName)
+	local lowerName = string.lower(toolName)
+	for weaponName, data in pairs(WeaponDatabase) do
+		if string.find(lowerName, string.lower(weaponName), 1, true) then
+			return weaponName, data.Tier, data.Color
+		end
+	end
+	return toolName, "ITEM", Color3.fromRGB(255, 255, 255)
+end
+
+-- สร้าง ScreenGui หลัก
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "BlockSpinModernUI"
+screenGui.ResetOnSpawn = false
+pcall(function() screenGui.Parent = CoreGui end)
+if not screenGui.Parent then
+	screenGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- ==========================================
+-- 1. หน้าต่างใส่คีย์ (Key: 1)
+-- ==========================================
+local keyOverlay = Instance.new("Frame")
+keyOverlay.Size = UDim2.new(1, 0, 1, 0)
+keyOverlay.BackgroundColor3 = Color3.fromRGB(10, 10, 15)
+keyOverlay.BackgroundTransparency = 0.7
+keyOverlay.Parent = screenGui
+
+local keyBox = Instance.new("Frame")
+keyBox.Size = UDim2.new(0, 360, 0, 220)
+keyBox.AnchorPoint = Vector2.new(0.5, 0.5)
+keyBox.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyBox.BackgroundColor3 = Color3.fromRGB(20, 20, 28)
+keyBox.Parent = keyOverlay
+
+local keyBoxStroke = Instance.new("UIStroke")
+keyBoxStroke.Color = Color3.fromRGB(99, 102, 241)
+keyBoxStroke.Thickness = 1.5
+keyBoxStroke.Parent = keyBox
+
+local keyBoxCorner = Instance.new("UICorner")
+keyBoxCorner.CornerRadius = UDim.new(0, 12)
+keyBoxCorner.Parent = keyBox
+
+local keyTitle = Instance.new("TextLabel")
+keyTitle.Size = UDim2.new(1, 0, 0, 45)
+keyTitle.Position = UDim2.new(0, 0, 0, 10)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "🔐 ยืนยันคีย์ใช้งาน"
+keyTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyTitle.Font = Enum.Font.GothamBold
+keyTitle.TextSize = 18
+keyTitle.Parent = keyBox
+
+local keyInput = Instance.new("TextBox")
+keyInput.Size = UDim2.new(0.85, 0, 0, 42)
+keyInput.Position = UDim2.new(0.075, 0, 0, 70)
+keyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 42)
+keyInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyInput.PlaceholderText = "กรอกคีย์ (คีย์คือ 1)"
+keyInput.Font = Enum.Font.Gotham
+keyInput.TextSize = 14
+keyInput.ClearTextOnFocus = false
+keyInput.Parent = keyBox
+
+local inputCorner = Instance.new("UICorner")
+inputCorner.CornerRadius = UDim.new(0, 8)
+inputCorner.Parent = keyInput
+
+local errorMsg = Instance.new("TextLabel")
+errorMsg.Size = UDim2.new(0.85, 0, 0, 20)
+errorMsg.Position = UDim2.new(0.075, 0, 0, 120)
+errorMsg.BackgroundTransparency = 1
+errorMsg.Text = "❌ คีย์ไม่ถูกต้อง ลองใหม่อีกครั้ง"
+errorMsg.TextColor3 = Color3.fromRGB(239, 68, 68)
+errorMsg.Font = Enum.Font.GothamSemibold
+errorMsg.TextSize = 12
+errorMsg.Visible = false
+errorMsg.Parent = keyBox
+
+local submitBtn = Instance.new("TextButton")
+submitBtn.Size = UDim2.new(0.85, 0, 0, 40)
+submitBtn.Position = UDim2.new(0.075, 0, 0, 150)
+submitBtn.BackgroundColor3 = Color3.fromRGB(99, 102, 241)
+submitBtn.Text = "ยืนยันเข้าสู่ระบบ"
+submitBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+submitBtn.Font = Enum.Font.GothamBold
+submitBtn.TextSiz
