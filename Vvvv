@@ -1,0 +1,473 @@
+-- ==========================================
+-- สคริปต์เอ๋อ : Urban Reload Master Farm Hub (Owner Key Multi-use + 100 Permanent Single-use)
+-- ==========================================
+local CoreGui = game:GetService("CoreGui")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+
+local localPlayer = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
+
+local KEY_FILE_NAME = "Aeor_UrbanReload_Session.json"
+
+local FarmConfig = {
+	MenuKey = Enum.KeyCode.RightControl,
+	LockNPC = false,          
+	AutoShoot = false,        
+	ShootDelay = 0.05,        
+	MaxDistance = 600,        
+	SkeletonESP = false,      
+	MenuVisible = true
+}
+
+-- ==========================================
+-- ฐานข้อมูลคีย์
+-- ==========================================
+local DatabaseKeys = {
+	-- คีย์มาสเตอร์เจ้าของ (ใช้ซ้ำได้หลายคน / ตลอดชีพ / ไม่ถูกลบ)
+	OwnerKey = "OWNER-KEY-URBAN-9999",
+	
+	-- คีย์ถาวร 100 ปี (ใช้แล้วลบออกทันที 1 คนต่อ 1 คีย์)
+	PermanentKeys = {
+		"PERM-CENTURY-001-XQ", "PERM-CENTURY-002-AB", "PERM-CENTURY-003-ZX", "PERM-CENTURY-004-LM", "PERM-CENTURY-005-QQ",
+		"PERM-CENTURY-006-TY", "PERM-CENTURY-007-UI", "PERM-CENTURY-008-OP", "PERM-CENTURY-009-AS", "PERM-CENTURY-010-DF",
+		"PERM-CENTURY-011-GH", "PERM-CENTURY-012-JK", "PERM-CENTURY-013-LZ", "PERM-CENTURY-014-XC", "PERM-CENTURY-015-BN",
+		"PERM-CENTURY-016-QW", "PERM-CENTURY-017-RT", "PERM-CENTURY-018-UI", "PERM-CENTURY-019-AD", "PERM-CENTURY-020-FG",
+		"PERM-CENTURY-021-JK", "PERM-CENTURY-022-ZX", "PERM-CENTURY-023-VB", "PERM-CENTURY-024-PO", "PERM-CENTURY-025-LK",
+		"PERM-CENTURY-026-HG", "PERM-CENTURY-027-DS", "PERM-CENTURY-028-RE", "PERM-CENTURY-029-QA", "PERM-CENTURY-030-WS",
+		"PERM-CENTURY-031-ED", "PERM-CENTURY-032-RF", "PERM-CENTURY-033-TG", "PERM-CENTURY-034-YH", "PERM-CENTURY-035-UJ",
+		"PERM-CENTURY-036-IK", "PERM-CENTURY-037-OP", "PERM-CENTURY-038-ZZ", "PERM-CENTURY-039-XX", "PERM-CENTURY-040-CC",
+		"PERM-CENTURY-041-VV", "PERM-CENTURY-042-BB", "PERM-CENTURY-043-NN", "PERM-CENTURY-044-MM", "PERM-CENTURY-045-AA",
+		"PERM-CENTURY-046-SS", "PERM-CENTURY-047-DD", "PERM-CENTURY-048-FF", "PERM-CENTURY-049-GG", "PERM-CENTURY-050-HH",
+		"PERM-CENTURY-051-JJ", "PERM-CENTURY-052-KK", "PERM-CENTURY-053-LL", "PERM-CENTURY-054-QQ", "PERM-CENTURY-055-WW",
+		"PERM-CENTURY-056-EE", "PERM-CENTURY-057-RR", "PERM-CENTURY-058-TT", "PERM-CENTURY-059-YY", "PERM-CENTURY-060-UU",
+		"PERM-CENTURY-061-II", "PERM-CENTURY-062-OO", "PERM-CENTURY-063-PP", "PERM-CENTURY-064-M1", "PERM-CENTURY-065-M2",
+		"PERM-CENTURY-066-M3", "PERM-CENTURY-067-M4", "PERM-CENTURY-068-M5", "PERM-CENTURY-069-M6", "PERM-CENTURY-070-M7",
+		"PERM-CENTURY-071-M8", "PERM-CENTURY-072-M9", "PERM-CENTURY-073-N1", "PERM-CENTURY-074-N2", "PERM-CENTURY-075-N3",
+		"PERM-CENTURY-076-N4", "PERM-CENTURY-077-N5", "PERM-CENTURY-078-N6", "PERM-CENTURY-079-N7", "PERM-CENTURY-080-N8",
+		"PERM-CENTURY-081-N9", "PERM-CENTURY-082-P1", "PERM-CENTURY-083-P2", "PERM-CENTURY-084-P3", "PERM-CENTURY-085-P4",
+		"PERM-CENTURY-086-P5", "PERM-CENTURY-087-P6", "PERM-CENTURY-088-P7", "PERM-CENTURY-089-P8", "PERM-CENTURY-090-P9",
+		"PERM-CENTURY-091-K1", "PERM-CENTURY-092-K2", "PERM-CENTURY-093-K3", "PERM-CENTURY-094-K4", "PERM-CENTURY-095-K5",
+		"PERM-CENTURY-096-K6", "PERM-CENTURY-097-K7", "PERM-CENTURY-098-K8", "PERM-CENTURY-099-K9", "PERM-CENTURY-100-FIN"
+	},
+	HourKeys = { "HKEY-9821-XQ", "HKEY-4123-AB", "HKEY-7712-ZX" },
+	DayKeys = { "DKEY-1001-AXX", "DKEY-1002-BXX", "DKEY-1003-CXX" }
+}
+
+local currentTarget = nil
+local activeSkeletons = {}
+local lastShotTime = 0
+
+local function randomString(length)
+	local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	local result = ""
+	for i = 1, length do
+		local rand = math.random(1, #chars)
+		result = result .. chars:sub(rand, rand)
+	end
+	return result
+end
+
+local rootGui = Instance.new("ScreenGui")
+rootGui.Name = randomString(12)
+rootGui.ResetOnSpawn = false
+pcall(function() rootGui.Parent = CoreGui end)
+if not rootGui.Parent then
+	rootGui.Parent = localPlayer:WaitForChild("PlayerGui")
+end
+
+-- ==========================================
+-- ฟังก์ชันตรวจสอบคีย์
+-- ==========================================
+local function verifyAndConsumeKey(inputKey)
+	-- เช็ค Owner Key (ใช้ซ้ำได้หลายคน ไม่ลบออกจากระบบ)
+	if inputKey == DatabaseKeys.OwnerKey then
+		return 3153600000, "คีย์มาสเตอร์เจ้าของ (ใช้ซ้ำได้หลายคน)"
+	end
+	
+	-- เช็คคีย์ถาวร 100 ปี (ใช้แล้วลบทิ้ง 1 คนต่อ 1 คีย์)
+	for i, k in ipairs(DatabaseKeys.PermanentKeys) do
+		if k == inputKey then
+			table.remove(DatabaseKeys.PermanentKeys, i)
+			return 3153600000, "คีย์ถาวร 100 ปี"
+		end
+	end
+	
+	-- เช็คคีย์รายวัน
+	for i, k in ipairs(DatabaseKeys.DayKeys) do
+		if k == inputKey then
+			table.remove(DatabaseKeys.DayKeys, i)
+			return 86400, "1 วัน"
+		end
+	end
+	
+	-- เช็คคีย์รายชั่วโมง
+	for i, k in ipairs(DatabaseKeys.HourKeys) do
+		if k == inputKey then
+			table.remove(DatabaseKeys.HourKeys, i)
+			return 3600, "1 ชั่วโมง"
+		end
+	end
+	
+	return 0, nil
+end
+
+local function saveKeySession(duration)
+	local expireTime = os.time() + duration
+	pcall(function() writefile(KEY_FILE_NAME, HttpService:JSONEncode({ ExpireAt = expireTime })) end)
+end
+
+local function checkExistingSession()
+	if not pcall(function() readfile(KEY_FILE_NAME) end) then return false end
+	local success, result = pcall(function() return HttpService:JSONDecode(readfile(KEY_FILE_NAME)) end)
+	if success and result and result.ExpireAt then
+		if result.ExpireAt - os.time() > 0 then return true
+		else
+			pcall(function() delfile(KEY_FILE_NAME) end)
+			return false
+		end
+	end
+	return false
+end
+
+-- ==========================================
+-- 1. หน้าต่างใส่คีย์ (สคริปต์เอ๋อ)
+-- ==========================================
+local keyOverlay = Instance.new("Frame")
+keyOverlay.Size = UDim2.new(1, 0, 1, 0)
+keyOverlay.BackgroundColor3 = Color3.fromRGB(10, 10, 12)
+keyOverlay.BackgroundTransparency = 0.8
+keyOverlay.Parent = rootGui
+
+local keyCard = Instance.new("Frame")
+keyCard.Size = UDim2.new(0, 360, 0, 210)
+keyCard.AnchorPoint = Vector2.new(0.5, 0.5)
+keyCard.Position = UDim2.new(0.5, 0, 0.5, 0)
+keyCard.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+keyCard.Parent = keyOverlay
+
+local cardStroke = Instance.new("UIStroke")
+cardStroke.Color = Color3.fromRGB(200, 40, 40)
+cardStroke.Thickness = 2
+cardStroke.Parent = keyCard
+
+Instance.new("UICorner", keyCard).CornerRadius = UDim.new(0, 10)
+
+local keyTitle = Instance.new("TextLabel")
+keyTitle.Size = UDim2.new(1, 0, 0, 45)
+keyTitle.BackgroundTransparency = 1
+keyTitle.Text = "🔥 สคริปต์เอ๋อ • AUTH SYSTEM"
+keyTitle.TextColor3 = Color3.fromRGB(255, 60, 60)
+keyTitle.Font = Enum.Font.GothamBold
+keyTitle.TextSize = 13
+keyTitle.Parent = keyCard
+
+local keyBox = Instance.new("TextBox")
+keyBox.Size = UDim2.new(0.85, 0, 0, 40)
+keyBox.Position = UDim2.new(0.075, 0, 0, 55)
+keyBox.BackgroundColor3 = Color3.fromRGB(28, 28, 35)
+keyBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+keyBox.PlaceholderText = "กรอกคีย์ของคุณที่นี่..."
+keyBox.Font = Enum.Font.Gotham
+keyBox.TextSize = 12
+keyBox.ClearTextOnFocus = false
+keyBox.Parent = keyCard
+Instance.new("UICorner", keyBox).CornerRadius = UDim.new(0, 6)
+
+local errorNotice = Instance.new("TextLabel")
+errorNotice.Size = UDim2.new(0.85, 0, 0, 25)
+errorNotice.Position = UDim2.new(0.075, 0, 0, 100)
+errorNotice.BackgroundTransparency = 1
+errorNotice.Text = "❌ คีย์ไม่ถูกต้อง หรือถูกใช้งานไปแล้ว"
+errorNotice.TextColor3 = Color3.fromRGB(255, 80, 80)
+errorNotice.Font = Enum.Font.GothamSemibold
+errorNotice.TextSize = 11
+errorNotice.Visible = false
+errorNotice.Parent = keyCard
+
+local verifyBtn = Instance.new("TextButton")
+verifyBtn.Size = UDim2.new(0.85, 0, 0, 40)
+verifyBtn.Position = UDim2.new(0.075, 0, 0, 138)
+verifyBtn.BackgroundColor3 = Color3.fromRGB(180, 35, 35)
+verifyBtn.Text = "⚡ ยืนยันเข้าสู่ระบบสคริปต์เอ๋อ"
+verifyBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+verifyBtn.Font = Enum.Font.GothamBold
+verifyBtn.TextSize = 13
+verifyBtn.Parent = keyCard
+Instance.new("UICorner", verifyBtn).CornerRadius = UDim.new(0, 6)
+
+-- ==========================================
+-- 2. ระบบฟาร์มและค้นหาเป้าหมาย (กรองเส้นเขียว)
+-- ==========================================
+local function getClosestFarmNPCHead()
+	local closestHead = nil
+	local shortestDist = FarmConfig.MaxDistance
+	local myChar = localPlayer.Character
+	if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return nil end
+	local myRoot = myChar.HumanoidRootPart
+
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj ~= myChar then
+			local isPlayer = Players:GetPlayerFromCharacter(obj)
+			if not isPlayer then
+				local humanoid = obj:FindFirstChildOfClass("Humanoid")
+				local head = obj:FindFirstChild("Head")
+
+				if humanoid and humanoid.Health > 0 and head then
+					local hasGreenHighlight = false
+					for _, child in ipairs(obj:GetChildren()) do
+						if child:IsA("Highlight") then
+							if child.FillColor.G > 0.5 or child.OutlineColor.G > 0.5 then
+								hasGreenHighlight = true
+								break
+							end
+						end
+					end
+
+					if not hasGreenHighlight then
+						local dist = (head.Position - myRoot.Position).Magnitude
+						if dist < shortestDist then
+							shortestDist = dist
+							closestHead = head
+						end
+					end
+				end
+			end
+		end
+	end
+	return closestHead
+end
+
+local function triggerShoot()
+	local char = localPlayer.Character
+	if not char then return end
+	local tool = char:FindFirstChildOfClass("Tool")
+	if tool then pcall(function() tool:Activate() end) end
+end
+
+local function updateSkeletonESP()
+	for model, lines in pairs(activeSkeletons) do
+		if not model or not model.Parent or not model:FindFirstChildOfClass("Humanoid") or model:FindFirstChildOfClass("Humanoid").Health <= 0 then
+			for _, line in pairs(lines) do line:Remove() end
+			activeSkeletons[model] = nil
+		end
+	end
+
+	if not FarmConfig.SkeletonESP then return end
+
+	for _, obj in pairs(Workspace:GetDescendants()) do
+		if obj:IsA("Model") and obj ~= localPlayer.Character then
+			local isPlayer = Players:GetPlayerFromCharacter(obj)
+			if not isPlayer then
+				local humanoid = obj:FindFirstChildOfClass("Humanoid")
+				local head = obj:FindFirstChild("Head")
+				local root = obj:FindFirstChild("HumanoidRootPart")
+
+				if humanoid and humanoid.Health > 0 and head and root then
+					if not activeSkeletons[obj] then
+						local line = Drawing.new("Line")
+						line.Visible = false
+						line.Color = Color3.fromRGB(255, 60, 60)
+						line.Thickness = 1.5
+						activeSkeletons[obj] = {line}
+					end
+
+					local headPos, onScreen1 = camera:WorldToViewportPoint(head.Position)
+					local rootPos, onScreen2 = camera:WorldToViewportPoint(root.Position)
+					local lines = activeSkeletons[obj]
+					if onScreen1 and onScreen2 and lines and lines[1] then
+						lines[1].From = Vector2.new(headPos.X, headPos.Y)
+						lines[1].To = Vector2.new(rootPos.X, rootPos.Y)
+						lines[1].Visible = true
+					elseif lines and lines[1] then
+						lines[1].Visible = false
+					end
+				end
+			end
+		end
+	end
+end
+
+-- ==========================================
+-- 3. เมนูหลัก (สคริปต์เอ๋อ UI Theme)
+-- ==========================================
+local mainFrame, openButton
+
+local function buildFarmHub()
+	openButton = Instance.new("TextButton")
+	openButton.Name = "OpenMenuBtn"
+	openButton.Size = UDim2.new(0, 130, 0, 36)
+	openButton.Position = UDim2.new(0.02, 0, 0.12, 0)
+	openButton.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+	openButton.Text = "⚙️ เมนูสคริปต์เอ๋อ"
+	openButton.TextColor3 = Color3.fromRGB(255, 60, 60)
+	openButton.Font = Enum.Font.GothamBold
+	openButton.TextSize = 12
+	openButton.Parent = rootGui
+	Instance.new("UICorner", openButton).CornerRadius = UDim.new(0, 6)
+	
+	local openStroke = Instance.new("UIStroke")
+	openStroke.Color = Color3.fromRGB(200, 40, 40)
+	openStroke.Thickness = 1
+	openStroke.Parent = openButton
+
+	mainFrame = Instance.new("Frame")
+	mainFrame.Name = "MainHubFrame"
+	mainFrame.Size = UDim2.new(0, 300, 0, 290)
+	mainFrame.Position = UDim2.new(0.02, 0, 0.20, 0)
+	mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 18)
+	mainFrame.Visible = true
+	mainFrame.Parent = rootGui
+	Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 10)
+
+	local mainStroke = Instance.new("UIStroke")
+	mainStroke.Color = Color3.fromRGB(180, 40, 40)
+	mainStroke.Thickness = 1.5
+	mainStroke.Parent = mainFrame
+
+	local topBar = Instance.new("Frame")
+	topBar.Size = UDim2.new(1, 0, 0, 40)
+	topBar.BackgroundColor3 = Color3.fromRGB(160, 30, 30)
+	topBar.Parent = mainFrame
+	Instance.new("UICorner", topBar).CornerRadius = UDim.new(0, 10)
+
+	local titleLabel = Instance.new("TextLabel")
+	titleLabel.Size = UDim2.new(1, 0, 1, 0)
+	titleLabel.BackgroundTransparency = 1
+	titleLabel.Text = "🔥 สคริปต์เอ๋อ • FARM HUB"
+	titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+	titleLabel.Font = Enum.Font.GothamBold
+	titleLabel.TextSize = 12
+	titleLabel.Parent = topBar
+
+	local function createToggle(name, posY, configKey, callback)
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(0.9, 0, 0, 42)
+		btn.Position = UDim2.new(0.05, 0, 0, posY)
+		btn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+		btn.Font = Enum.Font.GothamSemibold
+		btn.TextSize = 12
+		btn.Parent = mainFrame
+		Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+
+		local function updateVisual()
+			if FarmConfig[configKey] then
+				btn.BackgroundColor3 = Color3.fromRGB(40, 160, 80)
+				btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+				btn.Text = name .. " : [ เปิด ]"
+			else
+				btn.BackgroundColor3 = Color3.fromRGB(25, 25, 32)
+				btn.TextColor3 = Color3.fromRGB(180, 180, 180)
+				btn.Text = name .. " : [ ปิด ]"
+			end
+		end
+
+		updateVisual()
+		btn.MouseButton1Click:Connect(function()
+			FarmConfig[configKey] = not FarmConfig[configKey]
+			updateVisual()
+			if callback then callback(FarmConfig[configKey]) end
+		end)
+	end
+
+	createToggle("🎯 ล็อคหัว (ไม่ยิงเส้นเขียว)", 55, "LockNPC", function(state)
+		if not state then currentTarget = nil end
+	end)
+
+	createToggle("🔫 ยิงอัตโนมัติ (Auto Shoot)", 105, "AutoShoot")
+
+	createToggle("💀 แสดงโครงกระดูก (NPC ESP)", 155, "SkeletonESP", function(state)
+		if not state then
+			for _, lines in pairs(activeSkeletons) do
+				for _, line in pairs(lines) do line:Remove() end
+			end
+			activeSkeletons = {}
+		end
+	end)
+
+	local closeMenuBtn = Instance.new("TextButton")
+	closeMenuBtn.Size = UDim2.new(0.9, 0, 0, 38)
+	closeMenuBtn.Position = UDim2.new(0.05, 0, 0, 225)
+	closeMenuBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+	closeMenuBtn.Text = "❌ ซ่อนหน้าต่างนี้"
+	closeMenuBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	closeMenuBtn.Font = Enum.Font.GothamBold
+	closeMenuBtn.TextSize = 12
+	closeMenuBtn.Parent = mainFrame
+	Instance.new("UICorner", closeMenuBtn).CornerRadius = UDim.new(0, 6)
+
+	closeMenuBtn.MouseButton1Click:Connect(function()
+		FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+		mainFrame.Visible = FarmConfig.MenuVisible
+	end)
+
+	openButton.MouseButton1Click:Connect(function()
+		FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+		mainFrame.Visible = FarmConfig.MenuVisible
+	end)
+end
+
+-- ==========================================
+-- 4. ลูปการทำงานเบื้องหลัง (Heartbeat)
+-- ==========================================
+RunService.Heartbeat:Connect(function()
+	if FarmConfig.LockNPC then
+		if not currentTarget or not currentTarget.Parent or (currentTarget.Position - camera.CFrame.Position).Magnitude > FarmConfig.MaxDistance then
+			currentTarget = getClosestFarmNPCHead()
+		end
+		if currentTarget then
+			camera.CFrame = CFrame.new(camera.CFrame.Position, currentTarget.Position)
+		end
+	end
+
+	if FarmConfig.AutoShoot and FarmConfig.LockNPC and currentTarget then
+		local tickTime = tick()
+		if tickTime - lastShotTime >= FarmConfig.ShootDelay then
+			lastShotTime = tickTime
+			triggerShoot()
+		end
+	end
+
+	updateSkeletonESP()
+end)
+
+-- ==========================================
+-- 5. การจัดการปุ่มยืนยันคีย์
+-- ==========================================
+verifyBtn.MouseButton1Click:Connect(function()
+	local duration, keyType = verifyAndConsumeKey(keyBox.Text)
+	if duration > 0 then
+		saveKeySession(duration)
+		keyOverlay:Destroy()
+		buildFarmHub()
+		print("✅ ปลดล็อกสคริปต์เอ๋อสำเร็จ! ประเภทคีย์: " .. keyType)
+	else
+		errorNotice.Text = "❌ คีย์ไม่ถูกต้อง หรือถูกใช้งานไปแล้ว"
+		errorNotice.Visible = true
+		task.delay(2.5, function()
+			if errorNotice then errorNotice.Visible = false end
+		end)
+	end
+end)
+
+keyBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then verifyBtn:Activate() end
+end)
+
+UserInputService.InputBegan:Connect(function(input)
+	if input.KeyCode == FarmConfig.MenuKey then
+		if mainFrame then
+			FarmConfig.MenuVisible = not FarmConfig.MenuVisible
+			mainFrame.Visible = FarmConfig.MenuVisible
+		end
+	end
+end)
+
+if checkExistingSession() then
+	keyOverlay:Destroy()
+	buildFarmHub()
+	print("🔓 ยินดีต้อนรับกลับสู่สคริปต์เอ๋อ! เซสชันยังใช้งานได้ปกติ")
+end
