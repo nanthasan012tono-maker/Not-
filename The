@@ -1,0 +1,194 @@
+-- =========================================
+--       CART3R HUB V1.0
+--       Anime Red / Black UI
+--       Roblox Studio LocalScript
+-- =========================================
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+
+-- DATA
+local fishCount = 0
+local money = 0
+local bankMoney = 0
+local autoFishing = false
+local running = true
+
+-- GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "CART3R_HUB"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
+
+-- MAIN WINDOW
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.fromOffset(350, 440)
+main.Position = UDim2.new(0.5, -175, 0.5, -220)
+main.BackgroundColor3 = Color3.fromRGB(16, 16, 22)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 14)
+corner.Parent = main
+
+local outline = Instance.new("UIStroke")
+outline.Color = Color3.fromRGB(220, 25, 55)
+outline.Thickness = 2
+outline.Parent = main
+
+-- HEADER
+local header = Instance.new("TextLabel")
+header.Size = UDim2.new(1, 0, 0, 55)
+header.BackgroundColor3 = Color3.fromRGB(120, 12, 35)
+header.Text = "⚔ CART3R HUB V1.0"
+header.TextColor3 = Color3.new(1, 1, 1)
+header.TextSize = 22
+header.Font = Enum.Font.GothamBold
+header.Parent = main
+
+local headerCorner = Instance.new("UICorner")
+headerCorner.CornerRadius = UDim.new(0, 14)
+headerCorner.Parent = header
+
+-- CLOSE BUTTON
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.fromOffset(35, 35)
+closeButton.Position = UDim2.new(1, -43, 0, 10)
+closeButton.BackgroundColor3 = Color3.fromRGB(75, 10, 25)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.TextSize = 18
+closeButton.Font = Enum.Font.GothamBold
+closeButton.Parent = main
+
+-- LABEL FUNCTION
+local function createLabel(text, y)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -30, 0, 28)
+    label.Position = UDim2.fromOffset(15, y)
+    label.BackgroundTransparency = 1
+    label.Text = text
+    label.TextColor3 = Color3.fromRGB(240, 240, 240)
+    label.TextSize = 15
+    label.Font = Enum.Font.Gotham
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = main
+    return label
+end
+
+local status = createLabel("สถานะ: พร้อมใช้งาน", 65)
+local fishLabel = createLabel("🐟 ปลา: 0 ตัว", 100)
+local moneyLabel = createLabel("💰 เงิน: $0", 130)
+local bankLabel = createLabel("🏦 เงินฝาก: $0", 160)
+
+-- UPDATE DATA
+local function update()
+    fishLabel.Text = "🐟 ปลา: " .. fishCount .. " ตัว"
+    moneyLabel.Text = "💰 เงิน: $" .. money
+    bankLabel.Text = "🏦 เงินฝาก: $" .. bankMoney
+end
+
+-- BUTTON FUNCTION
+local function createButton(text, y, callback)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(1, -30, 0, 42)
+    button.Position = UDim2.fromOffset(15, y)
+    button.BackgroundColor3 = Color3.fromRGB(145, 18, 42)
+    button.Text = text
+    button.TextColor3 = Color3.new(1, 1, 1)
+    button.TextSize = 15
+    button.Font = Enum.Font.GothamBold
+    button.AutoButtonColor = true
+    button.Parent = main
+
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, 8)
+    c.Parent = button
+
+    button.MouseButton1Click:Connect(callback)
+
+    return button
+end
+
+-- MANUAL FISHING
+createButton("🎣 ตกปลา", 205, function()
+    status.Text = "สถานะ: กำลังตกปลา..."
+    task.wait(1)
+
+    if not gui.Parent then return end
+
+    fishCount += 1
+    status.Text = "สถานะ: ตกปลาได้แล้ว!"
+    update()
+end)
+
+-- SELL FISH
+createButton("💰 ขายปลาทั้งหมด", 255, function()
+    if fishCount > 0 then
+        local earned = fishCount * 50
+
+        money += earned
+        fishCount = 0
+
+        status.Text = "สถานะ: ขายปลาได้ $" .. earned
+    else
+        status.Text = "สถานะ: ไม่มีปลาให้ขาย"
+    end
+
+    update()
+end)
+
+-- DEPOSIT MONEY
+createButton("🏧 ฝากเงิน $100", 305, function()
+    if money >= 100 then
+        money -= 100
+        bankMoney += 100
+
+        status.Text = "สถานะ: ฝากเงินสำเร็จ!"
+    else
+        status.Text = "สถานะ: เงินไม่เพียงพอ"
+    end
+
+    update()
+end)
+
+-- AUTO FISHING
+local autoButton
+
+autoButton = createButton("▶ Auto Fishing: OFF", 355, function()
+    autoFishing = not autoFishing
+
+    if autoFishing then
+        autoButton.Text = "■ Auto Fishing: ON"
+        status.Text = "สถานะ: Auto Fishing ทำงาน"
+    else
+        autoButton.Text = "▶ Auto Fishing: OFF"
+        status.Text = "สถานะ: หยุดตกปลา"
+    end
+end)
+
+-- AUTO FISHING LOOP
+task.spawn(function()
+    while running and gui.Parent do
+        task.wait(3)
+
+        if autoFishing and running and gui.Parent then
+            fishCount += 1
+            status.Text = "สถานะ: ได้ปลา 1 ตัว!"
+            update()
+        end
+    end
+end)
+
+-- DRAG WINDOW
+local dragging = false
+local dragStart
+local startPosition
+
+header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1
+        or input.UserInputType == Enum.UserI
